@@ -1,13 +1,13 @@
-package com.example;
+package com.learnertob;
 
 import net.runelite.client.RuneLite;
 import net.runelite.client.externalplugins.ExternalPluginManager;
 
-public class ExamplePluginTest
+public class LearnerTobPluginTest
 {
 	public static void main(String[] args) throws Exception
 	{
-		ExternalPluginManager.loadBuiltin(ExamplePlugin.class);
+		ExternalPluginManager.loadBuiltin(LearnerTobPlugin.class);
 		RuneLite.main(args);
 	}
 }
