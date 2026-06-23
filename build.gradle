@@ -11,19 +11,23 @@ repositories {
 	mavenLocal()
 	maven {
 		url = 'https://repo.runelite.net'
+		content {
+			includeGroupByRegex("net\\.runelite.*")
+		}
 	}
 	mavenCentral()
 }
 
 def runeLiteVersion = 'latest.release'
+def pluginMainClass = 'com.learnertob.LearnerTobPluginTest'
 
 dependencies {
 	compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
 
-	compileOnly 'org.projectlombok:lombok:1.18.34'
-	annotationProcessor 'org.projectlombok:lombok:1.18.34'
+	compileOnly 'org.projectlombok:lombok:1.18.30'
+	annotationProcessor 'org.projectlombok:lombok:1.18.30'
 
-	testImplementation 'junit:junit:4.13.2'
+	testImplementation 'junit:junit:4.12'
 	testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
 	testImplementation group: 'net.runelite', name: 'jshell', version: runeLiteVersion
 }
@@ -31,38 +35,41 @@ dependencies {
 group = 'com.learnertob'
 version = '1.0.0'
 
-// Pin the build to Java 11 (the version RuneLite targets). This also fixes
-// the Lombok "NoSuchFieldException: TypeTag :: UNKNOWN" error that occurs
-// when compiling with a newer JDK.
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(11)
-	}
-}
-
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
 	options.encoding = 'UTF-8'
+	options.release.set(11)
 }
 
-test {
-	useJUnit()
-}
-
-// Dev launcher — runs the RuneLite client with this plugin loaded.
-// LearnerTobPluginTest lives in the test source set, so the run task
-// uses the test classpath. This task is for local development only;
-// the Plugin Hub ignores it.
 tasks.register('run', JavaExec) {
-	group = 'application'
-	description = 'Runs the RuneLite client with this plugin loaded'
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.learnertob.LearnerTobPluginTest'
+	mainClass = pluginMainClass
 
-	// RuneLite's dev launcher requires assertions to be enabled.
-	enableAssertions = true
+	jvmArgs "-ea"
+	args "--developer-mode", "--debug"
+}
 
-	// Use the same Java 11 toolchain for running, not whatever JDK is default.
-	javaLauncher = javaToolchains.launcherFor {
-		languageVersion = JavaLanguageVersion.of(11)
+tasks.register('shadowJar', Jar) {
+	dependsOn configurations.testRuntimeClasspath
+	manifest {
+		attributes('Main-Class': pluginMainClass, 'Multi-Release': true)
 	}
+
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	from sourceSets.main.output
+	from sourceSets.test.output
+	from {
+		configurations.testRuntimeClasspath.collect { file ->
+			file.isDirectory() ? file : zipTree(file)
+		}
+	}
+
+	exclude 'META-INF/INDEX.LIST'
+	exclude 'META-INF/*.SF'
+	exclude 'META-INF/*.DSA'
+	exclude 'META-INF/*.RSA'
+	exclude '**/module-info.class'
+
+	group = BasePlugin.BUILD_GROUP
+	archiveClassifier.set('shadow')
+	archiveFileName.set("${rootProject.name}-${project.version}-all.jar")
 }
