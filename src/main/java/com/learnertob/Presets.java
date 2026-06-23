@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026, macflag
+ * All rights reserved.
+ * Licensed under the BSD 2-Clause License. See LICENSE for details.
+ */
 package com.learnertob;
 
 import java.util.ArrayList;
@@ -75,7 +80,6 @@ public class Presets
     static final int DIVINE_SUPER_COMBAT_4 = 23685, SUPER_COMBAT_4 = 12695;
     static final int ANGLERFISH = 13441, RANGING_POTION_4 = 2444;
     static final int DIVINE_RUNE_POUCH_L = 27509, RUNE_POUCH = 12791, RADAS_BLESSING_4 = 22947;
-    static final int ELITE_VOID_TOP_L_INV = 24178; // void switch pieces (inv for scythe setup)
 
     // ------------------------------------------------------------------
     //  SLOT GROUPS — any one ID satisfies the slot

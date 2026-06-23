@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026, macflag
+ * All rights reserved.
+ * Licensed under the BSD 2-Clause License. See LICENSE for details.
+ */
 package com.learnertob;
 
 import java.awt.BorderLayout;
@@ -5,6 +10,8 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
+import java.util.Map;
+import java.util.Set;
 import javax.inject.Inject;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -20,36 +27,35 @@ import net.runelite.client.ui.PluginPanel;
 
 public class LearnerTobPanel extends PluginPanel
 {
-    private final LearnerTobConfig config;
-
-    private boolean filterEnabled = false;
     private boolean scytheSetup   = true;
-    private java.util.Set<Integer> readyIds = java.util.Collections.emptySet(); // equipped + inventory
-    private java.util.Set<Integer> bankIds  = java.util.Collections.emptySet(); // bank only
+    private Set<Integer> readyIds = java.util.Collections.emptySet(); // equipped + inventory
+    private Set<Integer> bankIds  = java.util.Collections.emptySet(); // bank only
+
+    // Maps an item ID the player owns -> its display name (provided by plugin)
+    private Map<Integer, String> ownedNames = java.util.Collections.emptyMap();
 
     private final JLabel  titleLabel    = new JLabel();
     private final JLabel  subtitleLabel = new JLabel();
-    private final JButton filterButton  = new JButton();
+    private final JButton checkButton   = new JButton();
     private final JComboBox<Role> roleCombo = new JComboBox<>(Role.values());
     private final JPanel  itemsPanel    = new JPanel();
 
-    private Runnable onFilterToggle;
+    private Runnable onRunCheck;
     private java.util.function.Consumer<Role> onRoleChange;
 
     @Inject
-    public LearnerTobPanel(LearnerTobConfig config)
+    public LearnerTobPanel()
     {
         super(false);
-        this.config = config;
         buildUI();
     }
 
-    public void setOnFilterToggle(Runnable r) { this.onFilterToggle = r; }
+    public void setOnRunCheck(Runnable r) { this.onRunCheck = r; }
     public void setOnRoleChange(java.util.function.Consumer<Role> c) { this.onRoleChange = c; }
     public void setRole(Role r) { roleCombo.setSelectedItem(r); }
-    public boolean isFilterEnabled() { return filterEnabled; }
     public void setScytheSetup(boolean s) { this.scytheSetup = s; }
-    public void setOwnedIds(java.util.Set<Integer> ready, java.util.Set<Integer> bank) { this.readyIds = ready; this.bankIds = bank; }
+    public void setOwnedIds(Set<Integer> ready, Set<Integer> bank) { this.readyIds = ready; this.bankIds = bank; }
+    public void setOwnedNames(Map<Integer, String> names) { this.ownedNames = names; }
 
     private void buildUI()
     {
@@ -60,7 +66,6 @@ public class LearnerTobPanel extends PluginPanel
         header.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         header.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
-        // Role selector
         JPanel rolePanel = new JPanel(new BorderLayout(4, 0));
         rolePanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         JLabel roleLbl = new JLabel("Role:");
@@ -82,18 +87,17 @@ public class LearnerTobPanel extends PluginPanel
         subtitleLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
         subtitleLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
-        filterButton.setFont(FontManager.getRunescapeFont());
-        filterButton.setFocusPainted(false);
-        filterButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        updateFilterButton();
-        filterButton.addActionListener((ActionEvent e) ->
+        checkButton.setText("Run Gear Check");
+        checkButton.setFont(FontManager.getRunescapeFont());
+        checkButton.setFocusPainted(false);
+        checkButton.setBackground(new Color(60, 120, 180));
+        checkButton.setForeground(Color.WHITE);
+        checkButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        checkButton.addActionListener((ActionEvent e) ->
         {
-            filterEnabled = !filterEnabled;
-            updateFilterButton();
-            if (onFilterToggle != null) onFilterToggle.run();
+            if (onRunCheck != null) onRunCheck.run();
         });
 
-        // Stack: role on top, then title/subtitle, then filter button
         JPanel titleStack = new JPanel(new BorderLayout(0, 2));
         titleStack.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         titleStack.add(titleLabel,    BorderLayout.NORTH);
@@ -105,7 +109,7 @@ public class LearnerTobPanel extends PluginPanel
         center.add(titleStack,  BorderLayout.CENTER);
 
         header.add(center,       BorderLayout.CENTER);
-        header.add(filterButton, BorderLayout.SOUTH);
+        header.add(checkButton, BorderLayout.SOUTH);
 
         itemsPanel.setLayout(new GridLayout(0, 1, 0, 0));
         itemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -122,25 +126,9 @@ public class LearnerTobPanel extends PluginPanel
         add(scroll, BorderLayout.CENTER);
     }
 
-    private void updateFilterButton()
-    {
-        if (filterEnabled)
-        {
-            filterButton.setText("Bank Filter: ON");
-            filterButton.setBackground(new Color(0, 130, 0));
-            filterButton.setForeground(Color.WHITE);
-        }
-        else
-        {
-            filterButton.setText("Bank Filter: OFF");
-            filterButton.setBackground(ColorScheme.MEDIUM_GRAY_COLOR);
-            filterButton.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        }
-    }
-
     public void refresh()
     {
-        titleLabel.setText("MDPS \u2014 " + (scytheSetup ? "Scythe" : "No Scythe"));
+        titleLabel.setText("MDPS — " + (scytheSetup ? "Scythe" : "No Scythe"));
         subtitleLabel.setText("Arceuus | Fire/Blood/Aether/Death");
 
         itemsPanel.removeAll();
@@ -174,37 +162,26 @@ public class LearnerTobPanel extends PluginPanel
         }
 
         addSectionHeader("Inventory");
-        if (scytheSetup) addItem("Scythe", "x1", Presets.SCYTHE_ANY);
+        if (scytheSetup) addItem("Scythe", "Scythe of Vitur", Presets.SCYTHE_ANY, "x1");
         else             addItem("Mage Weapon", "Eye of Ayak / Sang / Trident", Presets.MAGE_ANY);
-        addItem("Blowpipe",     "x1", Presets.BLOWPIPE_ANY);
-        addItem("Void Ranger Helm",  "x1", Presets.sub(Presets.VOID_RANGER_HELM_L));
+        addItem("Blowpipe",     "Blazing / Toxic", Presets.BLOWPIPE_ANY, "x1");
+        addItem("Void Ranger Helm",  "Void Ranger Helm", Presets.sub(Presets.VOID_RANGER_HELM_L), "x1");
         addItem("Range Cape",   "Quiver / Assembler", Presets.QUIVER_ANY);
-        addItem("Amulet of Anguish",      "x1", Presets.sub(Presets.NECKLACE_OF_ANGUISH_OR));
+        addItem("Amulet of Anguish",      "Necklace of Anguish (or)", Presets.sub(Presets.NECKLACE_OF_ANGUISH_OR), "x1");
         addItem("DPS Spec",     "Dragon Claws / Burning Claws", Presets.DPS_SPEC);
         addItem("Defense Spec", "Elder Maul / Dragon Warhammer", Presets.DEF_SPEC);
-        addItem("Salve Amulet (e)",        "x1", Presets.sub(Presets.SALVE_AMULET_E));
-        addItem("Crystal Halberd",      "x1", Presets.sub(Presets.CRYSTAL_HALBERD));
-        addItem("Bandos Godsword",          "x1", Presets.BGS_ANY);
-        addItem("Sulphur Blades",      "x1", Presets.sub(Presets.SULPHUR_BLADES));
-        if (!scytheSetup) addItem("Book", "Book of the Dead", Presets.sub(Presets.BOOK_OF_DEAD));
-        addItem("Saradomin Brews",        scytheSetup ? "x3" : "x4", Presets.sub(Presets.SARADOMIN_BREW_4));
-        addItem("Super Restores",     "x3", Presets.sub(Presets.SUPER_RESTORE_4));
-        addItem("Anglerfish",   scytheSetup ? "x3" : "x4", Presets.sub(Presets.ANGLERFISH));
-        addItem("Super Combat Potion",       "x1 Divine + x2 Reg", Presets.sub(Presets.DIVINE_SUPER_COMBAT_4));
-        addItem("Ranging Potion",      "x1", Presets.sub(Presets.RANGING_POTION_4));
+        addItem("Salve Amulet (e)",        "Salve Amulet (e)", Presets.sub(Presets.SALVE_AMULET_E), "x1");
+        addItem("Crystal Halberd",      "Crystal Halberd", Presets.sub(Presets.CRYSTAL_HALBERD), "x1");
+        addItem("Bandos Godsword",          "Bandos Godsword", Presets.BGS_ANY, "x1");
+        addItem("Sulphur Blades",      "Sulphur Blades", Presets.sub(Presets.SULPHUR_BLADES), "x1");
+        if (!scytheSetup) addItem("Book", "Book of the Dead", Presets.sub(Presets.BOOK_OF_DEAD), "x1");
+        addItem("Saradomin Brews",        "Saradomin Brew(4)", Presets.sub(Presets.SARADOMIN_BREW_4), scytheSetup ? "x3" : "x4");
+        addItem("Super Restores",     "Super Restore(4)", Presets.sub(Presets.SUPER_RESTORE_4), "x3");
+        addItem("Anglerfish",   "Anglerfish", Presets.sub(Presets.ANGLERFISH), scytheSetup ? "x3" : "x4");
+        addItem("Super Combat Potion",       "Divine Super Combat(4)", Presets.sub(Presets.DIVINE_SUPER_COMBAT_4), "x1 Divine + x2 Reg");
+        addItem("Ranging Potion",      "Ranging Potion(4)", Presets.sub(Presets.RANGING_POTION_4), "x1");
         addItem("Rune Pouch",   "Divine Rune Pouch", Presets.POUCH_ANY);
         addItem("Spellbook",    "Arceuus");
-
-        addSectionHeader("Acceptable Substitutions");
-        addSub("Melee Cape",   "Infernal Cape / Fire Cape");
-        addSub("Range Cape",   "Quiver / Assembler");
-        addSub("Melee Amulet",         "Rancour / Torture");
-        addSub("Boots",        "Avernic Treads / Primordial Boots");
-        addSub("Ring",         "Ultor Ring / Berserker Ring (i)");
-        addSub("Mage Weapon",  "Eye of Ayak / Sang Staff / Trident");
-        addSub("DPS Spec",     "Dragon Claws / Burning Claws");
-        addSub("Defense Spec", "Elder Maul / Dragon Warhammer");
-
 
         itemsPanel.revalidate();
         itemsPanel.repaint();
@@ -221,10 +198,20 @@ public class LearnerTobPanel extends PluginPanel
 
     private void addItem(String slot, String value)
     {
-        addItem(slot, value, null);
+        addItem(slot, value, null, null);
     }
 
-    private void addItem(String slot, String value, java.util.Set<Integer> validIds)
+    private void addItem(String slot, String fallback, Set<Integer> validIds)
+    {
+        addItem(slot, fallback, validIds, null);
+    }
+
+    /**
+     * Adds a loadout row. When {@code qty} is given (e.g. "x3"), it is appended
+     * to the displayed name so consumable counts stay visible even after the
+     * row resolves to the player's actual owned item.
+     */
+    private void addItem(String slot, String fallback, Set<Integer> validIds, String qty)
     {
         JPanel row = new JPanel(new GridLayout(2, 1, 0, 0));
         row.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -232,42 +219,51 @@ public class LearnerTobPanel extends PluginPanel
         JLabel s = new JLabel(slot.toUpperCase());
         s.setFont(FontManager.getRunescapeSmallFont());
         s.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        JLabel v = new JLabel(value);
-        v.setFont(FontManager.getRunescapeFont());
 
-        // Colour based on ownership:
-        // GREEN  = equipped or in inventory (ready to raid)
-        // YELLOW = only in bank (need to withdraw)
-        // RED    = don't have it anywhere
-        if (validIds == null)
-            v.setForeground(Color.WHITE);
-        else
+        String display = fallback;
+        Color colour = Color.WHITE;
+
+        if (validIds != null)
         {
-            boolean ready = validIds.stream().anyMatch(readyIds::contains);
-            boolean inBank = validIds.stream().anyMatch(bankIds::contains);
-            if (ready)       v.setForeground(new Color(70, 200, 70));   // green
-            else if (inBank) v.setForeground(new Color(230, 200, 60));  // yellow
-            else             v.setForeground(new Color(220, 90, 90));   // red
+            // Find the specific item the player owns (ready first, then bank)
+            Integer ownedReady = validIds.stream().filter(readyIds::contains).findFirst().orElse(null);
+            Integer ownedBank  = validIds.stream().filter(bankIds::contains).findFirst().orElse(null);
+
+            if (ownedReady != null)
+            {
+                display = nameFor(ownedReady, fallback);
+                colour  = new Color(70, 200, 70);   // green
+            }
+            else if (ownedBank != null)
+            {
+                display = nameFor(ownedBank, fallback);
+                colour  = new Color(230, 200, 60);  // yellow
+            }
+            else
+            {
+                display = fallback;                 // show generic option list
+                colour  = new Color(220, 90, 90);   // red
+            }
         }
 
+        // Append the required quantity for consumable rows
+        if (qty != null && !qty.isEmpty())
+        {
+            display = display + "  " + qty;
+        }
+
+        JLabel v = new JLabel(display);
+        v.setFont(FontManager.getRunescapeFont());
+        v.setForeground(colour);
         row.add(s);
         row.add(v);
         itemsPanel.add(row);
     }
 
-    private void addSub(String slot, String value)
+    /** Returns the real item name for an owned ID, or the fallback if unknown. */
+    private String nameFor(int id, String fallback)
     {
-        JPanel row = new JPanel(new GridLayout(2, 1, 0, 0));
-        row.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        row.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
-        JLabel s = new JLabel(slot.toUpperCase());
-        s.setFont(FontManager.getRunescapeSmallFont());
-        s.setForeground(new Color(140, 140, 140));
-        JLabel v = new JLabel(value);
-        v.setFont(FontManager.getRunescapeFont());
-        v.setForeground(new Color(185, 185, 185));
-        row.add(s);
-        row.add(v);
-        itemsPanel.add(row);
+        String n = ownedNames.get(id);
+        return (n == null || n.isEmpty()) ? fallback : n;
     }
 }

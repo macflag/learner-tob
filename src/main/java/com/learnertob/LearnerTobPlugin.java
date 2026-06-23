@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026, macflag
+ * All rights reserved.
+ * Licensed under the BSD 2-Clause License. See LICENSE for details.
+ */
 package com.learnertob;
 
 import com.google.inject.Provides;
@@ -5,6 +10,7 @@ import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +44,8 @@ import net.runelite.client.ui.overlay.OverlayManager;
 )
 public class LearnerTobPlugin extends Plugin implements MouseListener
 {
+	private static final int LOTS_THRESHOLD = 4;
+
 	@Inject private Client client;
 	@Inject private LearnerTobConfig config;
 	@Inject private ConfigManager configManager;
@@ -47,42 +55,35 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	@Inject private ClientToolbar clientToolbar;
 	@Inject private ClientThread clientThread;
 	@Inject private GearCheckOverlay overlay;
-	@Inject private BankHighlightOverlay bankOverlay;
 	@Inject private LearnerTobPanel panel;
 
 	private NavigationButton navButton;
 	private boolean lastScytheSetup = true;
 
 	@Provides
-	LearnerTobConfig provideConfig(ConfigManager cm) { return cm.getConfig(LearnerTobConfig.class); }
+	LearnerTobConfig provideConfig(ConfigManager cm)
+	{
+		return cm.getConfig(LearnerTobConfig.class);
+	}
 
 	@Override
 	protected void startUp()
 	{
 		overlayManager.add(overlay);
-		overlayManager.add(bankOverlay);
 		mouseManager.registerMouseListener(this);
-
-		java.awt.image.BufferedImage icon = new java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB);
-		java.awt.Graphics2D g = icon.createGraphics();
-		g.setColor(new java.awt.Color(0xF7CD45));
-		g.fillOval(0, 0, 15, 15);
-		g.setColor(new java.awt.Color(0x001DF5));
-		g.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 10));
-		g.drawString("T", 4, 11);
-		g.dispose();
 
 		navButton = NavigationButton.builder()
 				.tooltip("Learner ToB")
-				.icon(icon)
+				.icon(createIcon())
 				.priority(8)
 				.panel(panel)
 				.build();
 		clientToolbar.addNavigation(navButton);
 
-		panel.setOnFilterToggle(() -> clientThread.invokeLater(this::updateHighlights));
+		panel.setOnRunCheck(() -> clientThread.invokeLater(this::runCheck));
 		panel.setRole(config.role());
-		panel.setOnRoleChange(role -> {
+		panel.setOnRoleChange(role ->
+		{
 			configManager.setConfiguration(LearnerTobConfig.GROUP, "role", role);
 			clientThread.invokeLater(this::refreshFromOwned);
 		});
@@ -93,15 +94,14 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	protected void shutDown()
 	{
 		overlayManager.remove(overlay);
-		overlayManager.remove(bankOverlay);
 		mouseManager.unregisterMouseListener(this);
 		clientToolbar.removeNavigation(navButton);
 		overlay.dismiss();
 	}
 
-	// =====================================================================
-	//  OWNED ITEMS — bank + equipment + inventory
-	// =====================================================================
+	// ------------------------------------------------------------------
+	//  Owned item helpers
+	// ------------------------------------------------------------------
 	private Set<Integer> ownedIds()
 	{
 		Set<Integer> ids = new HashSet<>();
@@ -129,107 +129,163 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private void addContainer(Set<Integer> ids, InventoryID which)
 	{
 		ItemContainer c = client.getItemContainer(which);
-		if (c == null) return;
-		for (Item i : c.getItems()) if (i.getId() > 0) ids.add(i.getId());
+		if (c == null)
+		{
+			return;
+		}
+		for (Item i : c.getItems())
+		{
+			if (i.getId() > 0)
+			{
+				ids.add(i.getId());
+			}
+		}
 	}
 
-	// Quantity-aware owned map (for potion/food counts)
-	private Map<Integer, Integer> ownedCounts()
+	private Map<Integer, Integer> containerCounts(InventoryID which)
 	{
 		Map<Integer, Integer> map = new LinkedHashMap<>();
-		for (InventoryID which : new InventoryID[]{InventoryID.BANK, InventoryID.EQUIPMENT, InventoryID.INVENTORY})
+		ItemContainer c = client.getItemContainer(which);
+		if (c == null)
 		{
-			ItemContainer c = client.getItemContainer(which);
-			if (c == null) continue;
-			for (Item i : c.getItems())
-				if (i.getId() > 0) map.merge(i.getId(), Math.max(1, i.getQuantity()), Integer::sum);
+			return map;
+		}
+		for (Item i : c.getItems())
+		{
+			if (i.getId() > 0)
+			{
+				map.merge(i.getId(), Math.max(1, i.getQuantity()), Integer::sum);
+			}
 		}
 		return map;
 	}
 
-	// =====================================================================
-	//  REFRESH — detect scythe vs no-scythe and update panel + highlights
-	// =====================================================================
+	// ------------------------------------------------------------------
+	//  Refresh — detect scythe vs no-scythe, update panel and highlights
+	// ------------------------------------------------------------------
 	private void refreshFromOwned()
 	{
 		Set<Integer> owned = ownedIds();
 
-		// Only update scythe detection when we actually have items to look at.
-		// This prevents the equipment-stats screen (which empties the worn
-		// container) from flipping the whole panel to No-Scythe + all red.
+		// Only update the setup when there are items to read. This stops the
+		// equipment-stats screen (which momentarily empties the worn container)
+		// from flipping the panel to No-Scythe with everything marked missing.
 		if (!owned.isEmpty())
 		{
-			boolean scythe = Presets.hasScythe(owned);
-			lastScytheSetup = scythe;
-			panel.setScytheSetup(scythe);
+			lastScytheSetup = Presets.hasScythe(owned);
+			panel.setScytheSetup(lastScytheSetup);
 		}
 
 		panel.setOwnedIds(readyIds(), bankOnlyIds());
-		panel.refresh();
-		updateHighlights();
-	}
 
-	private void updateHighlights()
-	{
-		if (!panel.isFilterEnabled())
+		Map<Integer, String> names = new HashMap<>();
+		for (int id : owned)
 		{
-			bankOverlay.setRequiredIds(java.util.Collections.emptySet());
-			bankOverlay.setPresentIds(java.util.Collections.emptySet());
-			return;
+			if (Presets.ALL_RELEVANT_IDS.contains(id))
+			{
+				names.put(id, itemName(id));
+			}
 		}
-		bankOverlay.setRequiredIds(Presets.ALL_RELEVANT_IDS);
-		bankOverlay.setPresentIds(ownedIds());
+		panel.setOwnedNames(names);
+
+		panel.refresh();
 	}
 
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{
 		int id = event.getContainerId();
-		if (id == InventoryID.BANK.getId() || id == InventoryID.EQUIPMENT.getId() || id == InventoryID.INVENTORY.getId())
+		if (id == InventoryID.BANK.getId()
+				|| id == InventoryID.EQUIPMENT.getId()
+				|| id == InventoryID.INVENTORY.getId())
+		{
 			refreshFromOwned();
+		}
 	}
 
-	// =====================================================================
-	//  MOUSE
-	// =====================================================================
+	// ------------------------------------------------------------------
+	//  Mouse — a click anywhere dismisses the popup in click mode
+	// ------------------------------------------------------------------
 	@Override
 	public MouseEvent mouseClicked(MouseEvent e)
 	{
-		if (overlay.isVisible() && config.overlayDismiss() == OverlayDismiss.CLICK) overlay.dismiss();
+		if (overlay.isVisible() && config.overlayDismiss() == OverlayDismiss.CLICK)
+		{
+			overlay.dismiss();
+		}
 		return e;
 	}
-	@Override public MouseEvent mousePressed(MouseEvent e)  { return e; }
-	@Override public MouseEvent mouseReleased(MouseEvent e) { return e; }
-	@Override public MouseEvent mouseEntered(MouseEvent e)  { return e; }
-	@Override public MouseEvent mouseExited(MouseEvent e)   { return e; }
-	@Override public MouseEvent mouseMoved(MouseEvent e)    { return e; }
-	@Override public MouseEvent mouseDragged(MouseEvent e)  { return e; }
 
-	// =====================================================================
-	//  COMMANDS
-	// =====================================================================
+	@Override
+	public MouseEvent mousePressed(MouseEvent e)
+	{
+		return e;
+	}
+
+	@Override
+	public MouseEvent mouseReleased(MouseEvent e)
+	{
+		return e;
+	}
+
+	@Override
+	public MouseEvent mouseEntered(MouseEvent e)
+	{
+		return e;
+	}
+
+	@Override
+	public MouseEvent mouseExited(MouseEvent e)
+	{
+		return e;
+	}
+
+	@Override
+	public MouseEvent mouseMoved(MouseEvent e)
+	{
+		return e;
+	}
+
+	@Override
+	public MouseEvent mouseDragged(MouseEvent e)
+	{
+		return e;
+	}
+
+	// ------------------------------------------------------------------
+	//  Commands
+	// ------------------------------------------------------------------
 	@Subscribe
 	public void onCommandExecuted(CommandExecuted event)
 	{
 		switch (event.getCommand().toLowerCase())
 		{
-			case "tobcheck": runCheck(); break;
-			case "tobdump":  runDump();  break;
+			case "tobcheck":
+				runCheck();
+				break;
+			case "tobdump":
+				runDump();
+				break;
+			default:
+				break;
 		}
 	}
 
-	// =====================================================================
-	//  ::tobcheck — check WORN + INVENTORY against requirements
-	// =====================================================================
 	private void runCheck()
 	{
-		if (!config.enableGearCheck()) { message("Gear check is turned off."); return; }
-		if (config.role() != Role.MELEE) { message("No preset for " + config.role() + "."); return; }
+		if (!config.enableGearCheck())
+		{
+			message("Gear check is turned off.");
+			return;
+		}
+		if (config.role() != Role.MELEE)
+		{
+			message("No preset for " + config.role() + " yet.");
+			return;
+		}
 
-		// What's actually equipped/in inventory right now (NOT bank — must be on you)
 		Map<Integer, Integer> wornCounts = containerCounts(InventoryID.EQUIPMENT);
-		Map<Integer, Integer> invCounts  = containerCounts(InventoryID.INVENTORY);
-		Set<Integer> worn = wornCounts.keySet();
+		Map<Integer, Integer> invCounts = containerCounts(InventoryID.INVENTORY);
 
 		boolean scythe = lastScytheSetup;
 		List<SlotReq> reqs = Presets.requirements(scythe);
@@ -239,17 +295,28 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		{
 			Map<Integer, Integer> pool = req.equipped ? wornCounts : invCounts;
 			int have = 0;
-			for (int id : req.validIds) have += pool.getOrDefault(id, 0);
+			for (int id : req.validIds)
+			{
+				have += pool.getOrDefault(id, 0);
+			}
 			if (have < req.quantity)
 			{
 				String where = req.equipped ? "Equip" : "Bring";
-				if (req.quantity > 1) problems.add(where + " " + req.quantity + "x " + req.label + " (have " + have + ")");
-				else problems.add(where + " " + req.label);
+				if (req.quantity > 1)
+				{
+					problems.add(where + " " + req.quantity + "x " + req.label + " (have " + have + ")");
+				}
+				else
+				{
+					problems.add(where + " " + req.label);
+				}
 			}
 		}
 
 		if (Presets.ARCEUUS != readSpellbook())
+		{
 			problems.add("Switch to Arceuus spellbook");
+		}
 
 		String title = problems.isEmpty()
 				? "Gear check PASSED \u2705"
@@ -257,68 +324,137 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 
 		overlay.showResult(title, problems);
 
-		if (problems.size() >= 4) for (String p : problems) message("  - " + p);
+		if (problems.size() >= LOTS_THRESHOLD)
+		{
+			for (String p : problems)
+			{
+				message("  - " + p);
+			}
+		}
 
 		List<String> clip = new ArrayList<>();
 		clip.add(title);
-		for (String p : problems) clip.add("  - " + p);
+		for (String p : problems)
+		{
+			clip.add("  - " + p);
+		}
 		copyToClipboard(clip);
 	}
 
-	private Map<Integer, Integer> containerCounts(InventoryID which)
-	{
-		Map<Integer, Integer> map = new LinkedHashMap<>();
-		ItemContainer c = client.getItemContainer(which);
-		if (c == null) return map;
-		for (Item i : c.getItems()) if (i.getId() > 0) map.merge(i.getId(), Math.max(1, i.getQuantity()), Integer::sum);
-		return map;
-	}
-
-	// =====================================================================
-	//  ::tobdump
-	// =====================================================================
 	private void runDump()
 	{
 		List<String> lines = new ArrayList<>();
 		lines.add("=== TOBDUMP ===");
+
 		ItemContainer eq = client.getItemContainer(InventoryID.EQUIPMENT);
 		if (eq != null)
 		{
 			StringBuilder sb = new StringBuilder("EQUIP: ");
-			for (Item item : eq.getItems()) if (item.getId() > 0) sb.append(item.getId()).append("=").append(itemName(item.getId())).append("  ");
+			for (Item item : eq.getItems())
+			{
+				if (item.getId() > 0)
+				{
+					sb.append(item.getId()).append("=").append(itemName(item.getId())).append("  ");
+				}
+			}
 			lines.add(sb.toString());
 		}
+
 		Map<Integer, Integer> inv = containerCounts(InventoryID.INVENTORY);
 		if (!inv.isEmpty())
 		{
 			StringBuilder sb = new StringBuilder("INV: ");
-			for (Map.Entry<Integer, Integer> e : inv.entrySet()) sb.append(e.getKey()).append("=").append(itemName(e.getKey())).append("x").append(e.getValue()).append("  ");
+			for (Map.Entry<Integer, Integer> e : inv.entrySet())
+			{
+				sb.append(e.getKey()).append("=").append(itemName(e.getKey()))
+						.append("x").append(e.getValue()).append("  ");
+			}
 			lines.add(sb.toString());
 		}
+
 		lines.add("SPELLBOOK: " + readSpellbook() + " = " + spellbookName(readSpellbook()));
 		lines.add("=== END DUMP ===");
-		for (String line : lines) message(line);
+
+		for (String line : lines)
+		{
+			message(line);
+		}
 		copyToClipboard(lines);
 		message("Copied to clipboard \u2705");
 	}
 
-	// =====================================================================
-	//  HELPERS
-	// =====================================================================
-	int readSpellbook() { return client.getVarbitValue(Varbits.SPELLBOOK); }
-
-	private String spellbookName(int id) { switch (id) { case 0: return "Standard"; case 1: return "Ancient"; case 2: return "Lunar"; case 3: return "Arceuus"; default: return "?"; } }
-
-	String itemName(int id)
+	// ------------------------------------------------------------------
+	//  Helpers
+	// ------------------------------------------------------------------
+	private int readSpellbook()
 	{
-		try { String n = itemManager.getItemComposition(id).getName(); return (n == null || n.isEmpty()) ? "item#" + id : n; }
-		catch (Exception e) { return "item#" + id; }
+		return client.getVarbitValue(Varbits.SPELLBOOK);
+	}
+
+	private String spellbookName(int id)
+	{
+		switch (id)
+		{
+			case 0:
+				return "Standard";
+			case 1:
+				return "Ancient";
+			case 2:
+				return "Lunar";
+			case 3:
+				return "Arceuus";
+			default:
+				return "Unknown(" + id + ")";
+		}
+	}
+
+	private String itemName(int id)
+	{
+		try
+		{
+			String n = itemManager.getItemComposition(id).getName();
+			return (n == null || n.isEmpty()) ? "item#" + id : n;
+		}
+		catch (RuntimeException e)
+		{
+			return "item#" + id;
+		}
 	}
 
 	private void copyToClipboard(List<String> lines)
 	{
-		try { StringSelection sel = new StringSelection(String.join("\n", lines)); Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, sel); }
-		catch (Exception ignored) {}
+		try
+		{
+			StringSelection sel = new StringSelection(String.join("\n", lines));
+			Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, sel);
+		}
+		catch (RuntimeException ignored)
+		{
+			// Clipboard may be unavailable on some systems; ignore.
+		}
+	}
+
+	private java.awt.image.BufferedImage createIcon()
+	{
+		java.awt.image.BufferedImage icon =
+				new java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+		java.awt.Graphics2D g = icon.createGraphics();
+		g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+				java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+		// Purple glow background
+		g.setColor(new java.awt.Color(0x9B30C0));
+		g.fillRoundRect(1, 3, 14, 11, 4, 4);
+		// Gold chest body
+		g.setColor(new java.awt.Color(0xF7CD45));
+		g.fillRect(3, 6, 10, 7);
+		// Dark wood band
+		g.setColor(new java.awt.Color(0x5A3A22));
+		g.fillRect(3, 8, 10, 2);
+		// Lock
+		g.setColor(new java.awt.Color(0xF7CD45));
+		g.fillRect(7, 8, 2, 3);
+		g.dispose();
+		return icon;
 	}
 
 	private void message(String text)

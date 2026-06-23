@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026, macflag
+ * All rights reserved.
+ * Licensed under the BSD 2-Clause License. See LICENSE for details.
+ */
 package com.learnertob;
 
 import java.util.Set;
@@ -20,10 +25,5 @@ public class SlotReq
         this.validIds = validIds;
         this.quantity = quantity;
         this.equipped = equipped;
-    }
-
-    public SlotReq(String label, Set<Integer> validIds)
-    {
-        this(label, validIds, 1, false);
     }
 }
