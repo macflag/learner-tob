@@ -7,18 +7,27 @@ package com.learnertob;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Graphics2D;
 import java.awt.GridLayout;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
-import java.util.Map;
-import java.util.Set;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 import javax.inject.Inject;
 import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.Scrollable;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 import net.runelite.client.ui.ColorScheme;
@@ -27,21 +36,61 @@ import net.runelite.client.ui.PluginPanel;
 
 public class LearnerTobPanel extends PluginPanel
 {
-    private boolean scytheSetup   = true;
-    private Set<Integer> readyIds = java.util.Collections.emptySet(); // equipped + inventory
-    private Set<Integer> bankIds  = java.util.Collections.emptySet(); // bank only
+    // Dark cockpit: no green. NEUTRAL marks "ready/correct"; RED marks a problem.
+    private static final Color NEUTRAL = new Color(140, 140, 140);
+    private static final Color RED     = new Color(220, 90, 90);
 
-    // Maps an item ID the player owns -> its display name (provided by plugin)
-    private Map<Integer, String> ownedNames = java.util.Collections.emptyMap();
+    private static final int CELL_W = 40;
+    private static final int CELL_H = 40;
+    private static final int GAP    = 5;
+    // Inventory is 4 columns wide. Every section is laid out to this width
+    // so the left edges line up and the equipment cross can be centered.
+    private static final int BLOCK_W = 4 * CELL_W + 3 * GAP; // 169
 
-    private final JLabel  titleLabel    = new JLabel();
-    private final JLabel  subtitleLabel = new JLabel();
-    private final JButton checkButton   = new JButton();
+    private boolean scytheSetup = true;
+    private Role currentRole = Role.MELEE;
+    private List<ResolvedSlot> resolvedSlots = new ArrayList<>();
+    private String spellbookName = "Arceuus";
+    private String subtitle = "";
+    private boolean spellbookOk = true;
+
+    private final JLabel titleLabel    = new JLabel();
+    private final JLabel subtitleLabel = new JLabel();
+    private final JButton checkButton  = new JButton();
     private final JComboBox<Role> roleCombo = new JComboBox<>(Role.values());
-    private final JPanel  itemsPanel    = new JPanel();
+    private final ScrollablePanel contentPanel = new ScrollablePanel();
 
     private Runnable onRunCheck;
     private java.util.function.Consumer<Role> onRoleChange;
+
+    // ------------------------------------------------------------------
+    //  Data carrier (built on client thread, rendered on EDT)
+    // ------------------------------------------------------------------
+    public static final class ResolvedSlot
+    {
+        public final int itemId;
+        public final String itemName;
+        public final BufferedImage sprite;
+        public final Color border;
+        public final int quantity;   // expand into this many cells in inventory
+        public final boolean equipped;
+        public final int equipSlot;  // EquipmentInventorySlot index; -1 if inventory
+        public final int badge;      // stack count shown as a superscript; 0 = none
+
+        public ResolvedSlot(int itemId, String itemName, BufferedImage sprite,
+                            Color border, int quantity, boolean equipped, int equipSlot,
+                            int badge)
+        {
+            this.itemId    = itemId;
+            this.itemName  = itemName;
+            this.sprite    = sprite;
+            this.border    = border;
+            this.quantity  = quantity;
+            this.equipped  = equipped;
+            this.equipSlot = equipSlot;
+            this.badge     = badge;
+        }
+    }
 
     @Inject
     public LearnerTobPanel()
@@ -50,13 +99,27 @@ public class LearnerTobPanel extends PluginPanel
         buildUI();
     }
 
-    public void setOnRunCheck(Runnable r) { this.onRunCheck = r; }
+    // ------------------------------------------------------------------
+    //  Setters
+    // ------------------------------------------------------------------
+    public void setOnRunCheck(Runnable r)                            { this.onRunCheck = r; }
     public void setOnRoleChange(java.util.function.Consumer<Role> c) { this.onRoleChange = c; }
-    public void setRole(Role r) { roleCombo.setSelectedItem(r); }
+    public void setRole(Role r) { roleCombo.setSelectedItem(r); this.currentRole = r; }
     public void setScytheSetup(boolean s) { this.scytheSetup = s; }
-    public void setOwnedIds(Set<Integer> ready, Set<Integer> bank) { this.readyIds = ready; this.bankIds = bank; }
-    public void setOwnedNames(Map<Integer, String> names) { this.ownedNames = names; }
 
+    public void setResolvedSlots(List<ResolvedSlot> slots,
+                                 String spellbookName, boolean spellbookOk,
+                                 String subtitle)
+    {
+        this.subtitle = subtitle;
+        this.resolvedSlots = slots;
+        this.spellbookName = spellbookName;
+        this.spellbookOk   = spellbookOk;
+    }
+
+    // ------------------------------------------------------------------
+    //  UI skeleton
+    // ------------------------------------------------------------------
     private void buildUI()
     {
         setLayout(new BorderLayout());
@@ -74,7 +137,8 @@ public class LearnerTobPanel extends PluginPanel
         roleCombo.setFont(FontManager.getRunescapeFont());
         roleCombo.setFocusable(false);
         roleCombo.addActionListener(e -> {
-            if (onRoleChange != null) onRoleChange.accept((Role) roleCombo.getSelectedItem());
+            currentRole = (Role) roleCombo.getSelectedItem();
+            if (onRoleChange != null) onRoleChange.accept(currentRole);
         });
         rolePanel.add(roleLbl, BorderLayout.WEST);
         rolePanel.add(roleCombo, BorderLayout.CENTER);
@@ -93,8 +157,7 @@ public class LearnerTobPanel extends PluginPanel
         checkButton.setBackground(new Color(60, 120, 180));
         checkButton.setForeground(Color.WHITE);
         checkButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        checkButton.addActionListener((ActionEvent e) ->
-        {
+        checkButton.addActionListener((ActionEvent e) -> {
             if (onRunCheck != null) onRunCheck.run();
         });
 
@@ -108,162 +171,276 @@ public class LearnerTobPanel extends PluginPanel
         center.add(rolePanel,   BorderLayout.NORTH);
         center.add(titleStack,  BorderLayout.CENTER);
 
-        header.add(center,       BorderLayout.CENTER);
+        header.add(center,      BorderLayout.CENTER);
         header.add(checkButton, BorderLayout.SOUTH);
 
-        itemsPanel.setLayout(new GridLayout(0, 1, 0, 0));
-        itemsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        itemsPanel.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        contentPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(10, 8, 10, 8));
 
-        JScrollPane scroll = new JScrollPane(itemsPanel,
+        JScrollPane scroll = new JScrollPane(contentPanel,
                 ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
                 ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.setBackground(ColorScheme.DARK_GRAY_COLOR);
         scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.getVerticalScrollBar().setPreferredSize(new Dimension(6, 0));
+        scroll.getViewport().setBackground(ColorScheme.DARK_GRAY_COLOR);
 
         add(header, BorderLayout.NORTH);
         add(scroll, BorderLayout.CENTER);
     }
 
+    // ------------------------------------------------------------------
+    //  Refresh
+    // ------------------------------------------------------------------
     public void refresh()
     {
-        titleLabel.setText("MDPS — " + (scytheSetup ? "Scythe" : "No Scythe"));
-        subtitleLabel.setText("Arceuus | Fire/Blood/Aether/Death");
+        titleLabel.setText(currentRole.toString() + " \u2014 " + (scytheSetup ? "Scythe" : "No Scythe"));
+        subtitleLabel.setText(subtitle);
 
-        itemsPanel.removeAll();
+        contentPanel.removeAll();
 
-        addSectionHeader("Worn");
-        if (scytheSetup)
+        // Inventory
+        contentPanel.add(sectionHeader("Inventory"));
+        contentPanel.add(Box.createVerticalStrut(6));
+        List<ResolvedSlot> invSlots = new ArrayList<>();
+        for (ResolvedSlot s : resolvedSlots)
+            if (!s.equipped) invSlots.add(s);
+        contentPanel.add(buildGrid(invSlots, 4, 28));
+
+        contentPanel.add(Box.createVerticalStrut(16));
+
+        // Equipment (3-col cross, centered within the inventory width)
+        contentPanel.add(sectionHeader("Equipment"));
+        contentPanel.add(Box.createVerticalStrut(6));
+        contentPanel.add(buildEquipCross());
+
+        contentPanel.add(Box.createVerticalStrut(16));
+
+        // Spellbook
+        contentPanel.add(sectionHeader("Spellbook"));
+        contentPanel.add(Box.createVerticalStrut(6));
+        contentPanel.add(buildSpellbook());
+
+        // Rune Pouch
+        List<ResolvedSlot> runeSlots = new ArrayList<>();
+        for (ResolvedSlot s : resolvedSlots)
+            if (s.equipSlot == -99) runeSlots.add(s);
+        if (!runeSlots.isEmpty())
         {
-            addItem("Mage Weapon", "Eye of Ayak / Sang / Trident", Presets.MAGE_ANY);
-            addItem("Helm",        "Torva / Oathplate", Presets.HELM_ANY);
-            addItem("Body",        "Torva / Oathplate / Bandos", Presets.BODY_NONVOID);
-            addItem("Legs",        "Torva / Oathplate / Bandos", Presets.LEGS_NONVOID);
-            addItem("Cape",        "Infernal / Fire", Presets.CAPE_ANY);
-            addItem("Neck",        "Rancour / Torture", Presets.NECK_ANY);
-            addItem("Shield",      "Book of the Dead", Presets.sub(Presets.BOOK_OF_DEAD));
-            addItem("Gloves",      "Ferocious Gloves", Presets.sub(Presets.FEROCIOUS_GLOVES));
-            addItem("Boots",       "Avernic Treads / Primordial", Presets.BOOTS_ANY);
-            addItem("Ring",        "Ultor / Berserker (i)", Presets.RING_ANY);
+            contentPanel.add(Box.createVerticalStrut(16));
+            contentPanel.add(sectionHeader("Rune Pouch"));
+            contentPanel.add(Box.createVerticalStrut(6));
+            int runeCount = runeSlots.size();
+            int runeCells = runeCount <= 4 ? 4 : ((runeCount + 3) / 4) * 4;
+            contentPanel.add(buildGrid(runeSlots, 4, runeCells));
+        }
+
+        contentPanel.revalidate();
+        contentPanel.repaint();
+    }
+
+    // ------------------------------------------------------------------
+    //  Section builders
+    // ------------------------------------------------------------------
+
+    /** Fixed-size grid of item cells, left-aligned. */
+    private JPanel buildGrid(List<ResolvedSlot> slots, int cols, int totalCells)
+    {
+        int rows = (int) Math.ceil((double) totalCells / cols);
+        int w = cols * CELL_W + (cols - 1) * GAP;
+        int h = rows * CELL_H + (rows - 1) * GAP;
+
+        JPanel grid = new JPanel(new GridLayout(rows, cols, GAP, GAP));
+        grid.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        grid.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lockSize(grid, w, h);
+
+        int filled = 0;
+        for (ResolvedSlot s : slots)
+        {
+            int copies = Math.max(1, s.quantity);
+            for (int i = 0; i < copies && filled < totalCells; i++, filled++)
+                grid.add(itemCell(s));
+        }
+        while (filled < totalCells)
+        {
+            grid.add(emptyCell());
+            filled++;
+        }
+        return grid;
+    }
+
+    /** 3-column worn-equipment cross, centered inside a full-width block. */
+    private JPanel buildEquipCross()
+    {
+        JLabel[] cells = new JLabel[15];
+        for (int i = 0; i < 15; i++) cells[i] = emptyCell();
+
+        for (ResolvedSlot s : resolvedSlots)
+        {
+            if (!s.equipped) continue;
+            int idx = crossIndex(s.equipSlot);
+            if (idx >= 0 && idx < 15)
+                cells[idx] = itemCell(s);
+        }
+
+        int crossW = 3 * CELL_W + 2 * GAP;
+        int crossH = 5 * CELL_H + 4 * GAP;
+
+        JPanel cross = new JPanel(new GridLayout(5, 3, GAP, GAP));
+        cross.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        lockSize(cross, crossW, crossH);
+        for (int i = 0; i < 15; i++) cross.add(cells[i]);
+
+        // Center the cross within the inventory-width block
+        JPanel wrap = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        wrap.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        wrap.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lockSize(wrap, BLOCK_W, crossH);
+        wrap.add(cross);
+        return wrap;
+    }
+
+    private JPanel buildSpellbook()
+    {
+        JLabel cell = new JLabel(spellbookName, SwingConstants.CENTER);
+        cell.setOpaque(true);
+        cell.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        cell.setForeground(Color.WHITE);
+        cell.setFont(FontManager.getRunescapeFont());
+        cell.setBorder(BorderFactory.createLineBorder(spellbookOk ? NEUTRAL : RED, 2));
+        lockSize(cell, BLOCK_W, CELL_H);
+        cell.setToolTipText(spellbookOk ? "Correct spellbook" : "Switch to " + spellbookName);
+
+        JPanel wrap = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        wrap.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        wrap.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lockSize(wrap, BLOCK_W, CELL_H);
+        wrap.add(cell);
+        return wrap;
+    }
+
+    // ------------------------------------------------------------------
+    //  Cells
+    // ------------------------------------------------------------------
+
+    private JLabel emptyCell()
+    {
+        JLabel cell = new JLabel();
+        cell.setOpaque(true);
+        cell.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        lockSize(cell, CELL_W, CELL_H);
+        cell.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR, 1));
+        return cell;
+    }
+
+    /** Draws an OSRS-style stack count (yellow with shadow) onto a copy of the sprite. */
+    private BufferedImage withBadge(BufferedImage src, int count)
+    {
+        BufferedImage out = new BufferedImage(src.getWidth(), src.getHeight(),
+                BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        g.drawImage(src, 0, 0, null);
+        g.setFont(FontManager.getRunescapeSmallFont());
+        String txt = String.valueOf(count);
+        g.setColor(Color.BLACK);
+        g.drawString(txt, 2, 11);
+        g.setColor(Color.YELLOW);
+        g.drawString(txt, 1, 10);
+        g.dispose();
+        return out;
+    }
+
+    private JLabel itemCell(ResolvedSlot s)
+    {
+        JLabel cell = new JLabel();
+        cell.setOpaque(true);
+        cell.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        cell.setHorizontalAlignment(SwingConstants.CENTER);
+        cell.setVerticalAlignment(SwingConstants.CENTER);
+        lockSize(cell, CELL_W, CELL_H);
+        cell.setBorder(BorderFactory.createLineBorder(s.border, 2));
+        cell.setToolTipText(s.itemName);
+
+        if (s.sprite != null)
+        {
+            cell.setIcon(new ImageIcon(s.badge > 0 ? withBadge(s.sprite, s.badge) : s.sprite));
         }
         else
         {
-            addItem("Weapon",      "Abyssal Tentacle", Presets.sub(Presets.ABYSSAL_TENTACLE));
-            addItem("Helm",        "Void Melee Helm", Presets.HELM_VOID);
-            addItem("Body",        "Elite Void Top", Presets.BODY_VOID);
-            addItem("Legs",        "Elite Void Robe", Presets.LEGS_VOID);
-            addItem("Cape",        "Infernal / Fire", Presets.CAPE_ANY);
-            addItem("Neck",        "Rancour / Torture", Presets.NECK_ANY);
-            addItem("Shield",      "Any Defender", Presets.DEFENDER_ANY);
-            addItem("Gloves",      "Void Knight Gloves", Presets.sub(Presets.VOID_KNIGHT_GLOVES_L, Presets.VOID_KNIGHT_GLOVES));
-            addItem("Boots",       "Avernic Treads / Primordial", Presets.BOOTS_ANY);
-            addItem("Ring",        "Ultor / Berserker (i)", Presets.RING_ANY);
+            String t = s.itemName.length() > 7 ? s.itemName.substring(0, 6) + "\u2026" : s.itemName;
+            cell.setText(t);
+            cell.setFont(FontManager.getRunescapeSmallFont());
+            cell.setForeground(Color.WHITE);
         }
-
-        addSectionHeader("Inventory");
-        if (scytheSetup) addItem("Scythe", "Scythe of Vitur", Presets.SCYTHE_ANY, "x1");
-        else             addItem("Mage Weapon", "Eye of Ayak / Sang / Trident", Presets.MAGE_ANY);
-        addItem("Blowpipe",     "Blazing / Toxic", Presets.BLOWPIPE_ANY, "x1");
-        addItem("Void Ranger Helm",  "Void Ranger Helm", Presets.sub(Presets.VOID_RANGER_HELM_L), "x1");
-        addItem("Range Cape",   "Quiver / Assembler", Presets.QUIVER_ANY);
-        addItem("Amulet of Anguish",      "Necklace of Anguish (or)", Presets.sub(Presets.NECKLACE_OF_ANGUISH_OR), "x1");
-        addItem("DPS Spec",     "Dragon Claws / Burning Claws", Presets.DPS_SPEC);
-        addItem("Defense Spec", "Elder Maul / Dragon Warhammer", Presets.DEF_SPEC);
-        addItem("Salve Amulet (e)",        "Salve Amulet (e)", Presets.sub(Presets.SALVE_AMULET_E), "x1");
-        addItem("Crystal Halberd",      "Crystal Halberd", Presets.sub(Presets.CRYSTAL_HALBERD), "x1");
-        addItem("Bandos Godsword",          "Bandos Godsword", Presets.BGS_ANY, "x1");
-        addItem("Sulphur Blades",      "Sulphur Blades", Presets.sub(Presets.SULPHUR_BLADES), "x1");
-        if (!scytheSetup) addItem("Book", "Book of the Dead", Presets.sub(Presets.BOOK_OF_DEAD), "x1");
-        addItem("Saradomin Brews",        "Saradomin Brew(4)", Presets.sub(Presets.SARADOMIN_BREW_4), scytheSetup ? "x3" : "x4");
-        addItem("Super Restores",     "Super Restore(4)", Presets.sub(Presets.SUPER_RESTORE_4), "x3");
-        addItem("Anglerfish",   "Anglerfish", Presets.sub(Presets.ANGLERFISH), scytheSetup ? "x3" : "x4");
-        addItem("Super Combat Potion",       "Divine Super Combat(4)", Presets.sub(Presets.DIVINE_SUPER_COMBAT_4), "x1 Divine + x2 Reg");
-        addItem("Ranging Potion",      "Ranging Potion(4)", Presets.sub(Presets.RANGING_POTION_4), "x1");
-        addItem("Rune Pouch",   "Divine Rune Pouch", Presets.POUCH_ANY);
-        addItem("Spellbook",    "Arceuus");
-
-        itemsPanel.revalidate();
-        itemsPanel.repaint();
+        return cell;
     }
 
-    private void addSectionHeader(String text)
+    // ------------------------------------------------------------------
+    //  Cross layout — maps EquipmentInventorySlot index to cell position.
+    //  Row0(_, HEAD, _)  Row1(CAPE, AMULET, AMMO)  Row2(WEAPON, BODY, SHIELD)
+    //  Row3(_, LEGS, _)  Row4(GLOVES, BOOTS, RING)
+    // ------------------------------------------------------------------
+    private int crossIndex(int slot)
+    {
+        switch (slot)
+        {
+            case 0:  return 1;   // HEAD
+            case 1:  return 3;   // CAPE
+            case 2:  return 4;   // AMULET
+            case 13: return 5;   // AMMO  (quiver / blessing)
+            case 3:  return 6;   // WEAPON
+            case 4:  return 7;   // BODY
+            case 5:  return 8;   // SHIELD
+            case 7:  return 10;  // LEGS
+            case 9:  return 12;  // GLOVES
+            case 10: return 13;  // BOOTS
+            case 12: return 14;  // RING
+            default: return -1;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    //  Helpers
+    // ------------------------------------------------------------------
+
+    private static void lockSize(JPanel c, int w, int h)
+    {
+        Dimension d = new Dimension(w, h);
+        c.setPreferredSize(d);
+        c.setMinimumSize(d);
+        c.setMaximumSize(d);
+    }
+
+    private static void lockSize(JLabel c, int w, int h)
+    {
+        Dimension d = new Dimension(w, h);
+        c.setPreferredSize(d);
+        c.setMinimumSize(d);
+        c.setMaximumSize(d);
+    }
+
+    private JLabel sectionHeader(String text)
     {
         JLabel label = new JLabel(text);
         label.setFont(FontManager.getRunescapeBoldFont());
         label.setForeground(Color.ORANGE);
-        label.setBorder(BorderFactory.createEmptyBorder(8, 0, 2, 0));
-        itemsPanel.add(label);
-    }
-
-    private void addItem(String slot, String value)
-    {
-        addItem(slot, value, null, null);
-    }
-
-    private void addItem(String slot, String fallback, Set<Integer> validIds)
-    {
-        addItem(slot, fallback, validIds, null);
+        label.setAlignmentX(Component.CENTER_ALIGNMENT);
+        label.setBorder(BorderFactory.createEmptyBorder(0, 0, 2, 0));
+        return label;
     }
 
     /**
-     * Adds a loadout row. When {@code qty} is given (e.g. "x3"), it is appended
-     * to the displayed name so consumable counts stay visible even after the
-     * row resolves to the player's actual owned item.
+     * Content panel that does NOT track the viewport width, so the GridLayout
+     * cells keep their fixed size instead of stretching to fill the scroll pane.
      */
-    private void addItem(String slot, String fallback, Set<Integer> validIds, String qty)
+    private static final class ScrollablePanel extends JPanel implements Scrollable
     {
-        JPanel row = new JPanel(new GridLayout(2, 1, 0, 0));
-        row.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        row.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
-        JLabel s = new JLabel(slot.toUpperCase());
-        s.setFont(FontManager.getRunescapeSmallFont());
-        s.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-
-        String display = fallback;
-        Color colour = Color.WHITE;
-
-        if (validIds != null)
-        {
-            // Find the specific item the player owns (ready first, then bank)
-            Integer ownedReady = validIds.stream().filter(readyIds::contains).findFirst().orElse(null);
-            Integer ownedBank  = validIds.stream().filter(bankIds::contains).findFirst().orElse(null);
-
-            if (ownedReady != null)
-            {
-                display = nameFor(ownedReady, fallback);
-                colour  = new Color(70, 200, 70);   // green
-            }
-            else if (ownedBank != null)
-            {
-                display = nameFor(ownedBank, fallback);
-                colour  = new Color(230, 200, 60);  // yellow
-            }
-            else
-            {
-                display = fallback;                 // show generic option list
-                colour  = new Color(220, 90, 90);   // red
-            }
-        }
-
-        // Append the required quantity for consumable rows
-        if (qty != null && !qty.isEmpty())
-        {
-            display = display + "  " + qty;
-        }
-
-        JLabel v = new JLabel(display);
-        v.setFont(FontManager.getRunescapeFont());
-        v.setForeground(colour);
-        row.add(s);
-        row.add(v);
-        itemsPanel.add(row);
-    }
-
-    /** Returns the real item name for an owned ID, or the fallback if unknown. */
-    private String nameFor(int id, String fallback)
-    {
-        String n = ownedNames.get(id);
-        return (n == null || n.isEmpty()) ? fallback : n;
+        @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+        @Override public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return 16; }
+        @Override public int getScrollableBlockIncrement(Rectangle r, int o, int d) { return 48; }
+        @Override public boolean getScrollableTracksViewportWidth() { return true; }
+        @Override public boolean getScrollableTracksViewportHeight() { return false; }
     }
 }

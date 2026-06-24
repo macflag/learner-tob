@@ -8,6 +8,8 @@ package com.learnertob;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 import javax.inject.Inject;
@@ -18,12 +20,29 @@ import net.runelite.client.ui.overlay.components.TitleComponent;
 
 /**
  * Gear check result popup built on RuneLite's {@link OverlayPanel}.
- * RuneLite handles dragging and screen positioning; a click anywhere
- * dismisses it (see the plugin's mouse listener) when in click mode,
- * otherwise it auto-dismisses after the configured number of seconds.
+ *
+ * Dismissal is per-popup, chosen by the caller via {@link DismissMode}:
+ *   CLICK  — only a click INSIDE the popup closes it (no timer). Used by the
+ *            manual gear check and the raid-start door check, so spam-clicking
+ *            to run/eat never closes it.
+ *   TIMED  — auto-dismisses after a set number of seconds; a click inside still
+ *            closes it early. Used for in-room prompts.
+ *
+ * A click inside the popup always closes it, in either mode — the plugin's mouse
+ * listener calls {@link #containsPoint(Point)} and only dismisses on a hit, so
+ * clicks elsewhere on screen pass straight through to the game.
+ *
+ * Urgent popups can be shown {@code flashing}, which pulses the header and
+ * background to draw the eye (gated by the "Flashing alerts" config toggle).
  */
 public class GearCheckOverlay extends OverlayPanel
 {
+    public enum DismissMode { CLICK, TIMED }
+
+    private static final long FLASH_PERIOD_MS = 400;
+    // Dark cockpit: a clean result is neutral, never green.
+    private static final Color NEUTRAL = new Color(150, 150, 150);
+
     private final LearnerTobConfig config;
 
     private String title = null;
@@ -32,6 +51,10 @@ public class GearCheckOverlay extends OverlayPanel
     private boolean isLots = false;
     private long shownAt = 0;
 
+    private DismissMode dismissMode = DismissMode.CLICK;
+    private int timedSeconds = 3;
+    private boolean flashing = false;
+
     @Inject
     public GearCheckOverlay(LearnerTobConfig config)
     {
@@ -39,12 +62,29 @@ public class GearCheckOverlay extends OverlayPanel
         setPosition(OverlayPosition.TOP_CENTER);
     }
 
+    /** Shows a popup using the user's global dismiss setting (manual gear check). */
     public void showResult(String resultTitle, List<String> issues)
+    {
+        showResult(resultTitle, issues, DismissMode.CLICK, 3, false);
+    }
+
+    /**
+     * Shows a popup with an explicit dismiss behaviour.
+     *
+     * @param mode    CLICK (click-inside only) or TIMED (auto-dismiss)
+     * @param seconds auto-dismiss seconds when mode is TIMED
+     * @param flash   pulse the popup to draw attention (urgent callouts)
+     */
+    public void showResult(String resultTitle, List<String> issues,
+                           DismissMode mode, int seconds, boolean flash)
     {
         this.title = resultTitle;
         this.isPassed = issues.isEmpty();
         this.isLots = issues.size() > 3;
         this.shownAt = System.currentTimeMillis();
+        this.dismissMode = mode;
+        this.timedSeconds = seconds;
+        this.flashing = flash;
 
         lines = new ArrayList<>();
         if (isLots)
@@ -53,7 +93,7 @@ public class GearCheckOverlay extends OverlayPanel
         }
         else if (isPassed)
         {
-            lines.add("\u2705  All good!");
+            lines.add("No issues.");
         }
         else
         {
@@ -72,6 +112,19 @@ public class GearCheckOverlay extends OverlayPanel
         return title != null;
     }
 
+    /** True if the given canvas point is inside the popup's last-rendered bounds. */
+    public boolean containsPoint(Point p)
+    {
+        Rectangle b = getBounds();
+        return p != null && b != null && b.width > 0 && b.height > 0 && b.contains(p);
+    }
+
+    /** Whether a click inside should close this popup (true in every mode). */
+    public boolean clickCloses()
+    {
+        return true;
+    }
+
     @Override
     public Dimension render(Graphics2D g)
     {
@@ -80,22 +133,44 @@ public class GearCheckOverlay extends OverlayPanel
             return null;
         }
 
-        // Auto-dismiss after the configured time, unless in click-to-close mode
-        if (config.overlayDismiss() != OverlayDismiss.CLICK)
+        boolean clickMode;
+        int secs;
+        switch (dismissMode)
         {
-            int secs = dismissSeconds();
-            if (System.currentTimeMillis() - shownAt > secs * 1000L)
-            {
-                dismiss();
-                return null;
-            }
+            case TIMED:
+                clickMode = false;
+                secs = timedSeconds;
+                break;
+            case CLICK:
+            default:
+                clickMode = true;
+                secs = 0;
+                break;
+        }
+
+        // Auto-dismiss for timed popups (click-inside can still close early).
+        if (!clickMode && secs > 0
+                && System.currentTimeMillis() - shownAt > secs * 1000L)
+        {
+            dismiss();
+            return null;
         }
 
         applyPosition();
 
-        int alpha = (int) (config.overlayOpacity() / 100.0 * 255);
-        Color barColour = isPassed ? config.passColor()
+        // Flash phase: when flashing (and enabled), pulse on a fixed period.
+        boolean bright = true;
+        if (flashing && config.flashingAlerts())
+        {
+            bright = ((System.currentTimeMillis() / FLASH_PERIOD_MS) % 2) == 0;
+        }
+
+        int baseAlpha = (int) (config.overlayOpacity() / 100.0 * 255);
+        int alpha = bright ? baseAlpha : Math.max(40, baseAlpha / 2);
+
+        Color barColour = isPassed ? NEUTRAL
                 : (isLots ? config.lotsColor() : config.failColor());
+        Color headerColour = bright ? barColour.brighter().brighter() : barColour.darker();
 
         panelComponent.getChildren().clear();
         panelComponent.setPreferredSize(new Dimension(240, 0));
@@ -103,7 +178,7 @@ public class GearCheckOverlay extends OverlayPanel
 
         panelComponent.getChildren().add(TitleComponent.builder()
                 .text(title)
-                .color(barColour.brighter().brighter())
+                .color(headerColour)
                 .build());
 
         for (String line : lines)
@@ -114,7 +189,7 @@ public class GearCheckOverlay extends OverlayPanel
                     .build());
         }
 
-        if (config.overlayDismiss() == OverlayDismiss.CLICK)
+        if (clickMode)
         {
             panelComponent.getChildren().add(LineComponent.builder()
                     .left("Click to close")
@@ -147,21 +222,6 @@ public class GearCheckOverlay extends OverlayPanel
             default:
                 setPosition(OverlayPosition.TOP_CENTER);
                 break;
-        }
-    }
-
-    private int dismissSeconds()
-    {
-        switch (config.overlayDismiss())
-        {
-            case SECONDS_3:
-                return 3;
-            case SECONDS_5:
-                return 5;
-            case SECONDS_10:
-                return 10;
-            default:
-                return Integer.MAX_VALUE;
         }
     }
 }
