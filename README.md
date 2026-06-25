@@ -12,12 +12,13 @@ The plugin is **bank-driven** — there are no gear dropdowns to configure. Open
 
 ## Features
 
-- **Automatic setup detection** — reads your bank, equipment, and inventory and resolves the correct loadout for your role and Scythe/No-Scythe variant.
+- **Automatic setup detection** — reads your bank, equipment, and inventory and resolves the correct loadout for your role and setup variant (Scythe, No-Scythe, or MDPS Oathplate-Whip), with no configuration required.
 - **Sidebar loadout visualizer** — your expected loadout laid out like the in-game screen (inventory grid, equipment cross, spellbook, rune pouch). Hover any cell to identify it.
 - **Gear check** — validates what you are wearing and carrying against your role's loadout. Run it manually (button or `::tobcheck`), or let it run automatically at the raid-start door.
 - **Pre-raid checklist** — spellbook, runes, auto-retaliate, pre-pot boosts, and HP overheal, each individually toggleable.
+- **Maiden in-room guidance** — setup prompt on entry (drop Salve, equip your spec weapon), prayer prompt (role and setup aware), HP call-outs at 75/55/35%, and floor tile markers for standing positions, Nylocas Matomenos, and blood spawns.
 - **Dark-cockpit design** — no green. **Yellow** = in bank, **red** = missing/wrong, **neutral** = ready. Your eye is only drawn to what still needs action.
-- **Smart popups** — click-inside-to-close (the click is swallowed so you don't walk), timed auto-dismiss, and optional flashing for urgent alerts.
+- **Smart popups** — click-inside-to-close (the click is swallowed so you don't walk), timed auto-dismiss, comply-style (stays until you act), and optional flashing for urgent alerts.
 
 See the wiki for the full per-role breakdown and the exact check rules.
 
@@ -25,7 +26,7 @@ See the wiki for the full per-role breakdown and the exact check rules.
 
 ## Roles
 
-Pick your role from the **Role** dropdown at the top of the sidebar. Each has a Scythe and No-Scythe variant, detected automatically from your gear.
+Pick your role from the **Role** dropdown at the top of the sidebar. Setup variants are detected automatically from your gear — MDPS has three: Scythe, No-Scythe (Void), and Oathplate-Whip.
 
 | Role | Spellbook |
 | --- | --- |
@@ -49,9 +50,10 @@ Full loadouts, rune lists, and accepted substitutions are on the **[Loadouts wik
 
 ## Settings
 
-Grouped into **General**, **Popup**, and **Raid checklist** sections. Highlights:
+Grouped into **General**, **Raid checklist**, **Maiden**, **Popup**, and **Testing (dev)** sections. Highlights:
 
 - Toggle the gear check, each individual checklist item, and the automatic raid-entry door check.
+- Maiden prompts and tile markers, each individually toggleable.
 - Popup font size, position, opacity, issue colours, and flashing.
 
 See the **[Settings wiki page](../../wiki/Settings)** for every option.
@@ -64,7 +66,7 @@ Built in phases; every feature is individually toggleable.
 
 - **✅ Phase 1 — Setups & core:** all four roles with Scythe/No-Scythe variants, per-role spellbooks and runes, priority-based gear detection with bank-upgrade hints.
 - **✅ Phase 2 — Standalone features:** sidebar loadout visualizer, full pre-raid checklist, reusable proximity-zone engine (raid-start door check), dark-cockpit colours, per-popup dismissal and flashing.
-- **🔜 Phase 3 — In-room guidance:** per-room, per-role engine for entry checks, prayer reminders, tile markers, boss-HP callouts, and between-room supply reminders (Maiden → Verzik). Includes optional Xarpus sound muting.
+- **🔄 Phase 3 — In-room guidance (in progress):** per-room, per-role entry checks, prayer reminders, tile markers, and HP callouts. ✅ Maiden complete. Bloat, Nylocas, Sotetseg, Xarpus, Verzik coming next.
 - **🔭 Phase 4 — Quality of life:** hide the Bloat floor, hide other players, highlight Nylocas aggros.
 
 Detail on each phase lives on the **[Roadmap wiki page](../../wiki/Roadmap)**.
