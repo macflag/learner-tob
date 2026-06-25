@@ -103,4 +103,4 @@ Detail on each phase lives on the **[Roadmap wiki page](../../wiki/Roadmap)**.
 
 ## Contributing
 
-Questions, suggestions, or want to help build out a room? Join us at **[discord.gg/rancour-pvm](https://discord.gg/rancour-pvm)**. Developer and architecture notes are on the **[Development wiki page](../../wiki/Development)**.
+Questions, suggestions, or want to help build out a room? Join us at **[discord.gg/rancour-pvm](https://discord.gg/rancour-pvm)**. Found a bug or have a feature request? Open an issue on **[GitHub](../../issues)**. Developer and architecture notes are on the **[Development wiki page](../../wiki/Development)**.
