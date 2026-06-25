@@ -122,6 +122,8 @@ public class Presets
     // ------------------------------------------------------------------
     static final Set<Integer> HELM_TORVA   = sub(TORVA_FULL_HELM, SANGUINE_TORVA_HELM);
     static final Set<Integer> HELM_OATH    = sub(OATHPLATE_HELM, RADIANT_OATHPLATE_HELM);
+    static final Set<Integer> OATH_CHEST   = sub(OATHPLATE_CHEST, RADIANT_OATHPLATE_CHEST);
+    static final Set<Integer> OATH_LEGS    = sub(OATHPLATE_LEGS, RADIANT_OATHPLATE_LEGS);
     static final Set<Integer> HELM_VOID    = sub(VOID_MELEE_HELM, VOID_MELEE_HELM_L, VOID_MELEE_HELM_OR, VOID_MELEE_HELM_L_OR);
     static final Set<Integer> HELM_ANY     = sub(TORVA_FULL_HELM, SANGUINE_TORVA_HELM, OATHPLATE_HELM, RADIANT_OATHPLATE_HELM, NEITIZNOT_FACEGUARD);
 
@@ -226,6 +228,14 @@ public class Presets
         return ownedIds.stream().anyMatch(SCYTHE_ANY::contains);
     }
 
+    /** True only if the player owns a full Oathplate set (any variant): helm + chest + legs. */
+    public static boolean hasFullOathplate(Set<Integer> ownedIds)
+    {
+        return ownedIds.stream().anyMatch(HELM_OATH::contains)
+                && ownedIds.stream().anyMatch(OATH_CHEST::contains)
+                && ownedIds.stream().anyMatch(OATH_LEGS::contains);
+    }
+
     /** Expected spellbook for a role (matches the SPELLBOOK varbit). */
     public static int expectedSpellbook(Role role)
     {
@@ -252,6 +262,18 @@ public class Presets
             case MELEE:
             default:           return meleeReqs(scytheSetup);
         }
+    }
+
+    /**
+     * Setup-aware overload. The only extra state today is MDPS No-Scythe with an
+     * Oathplate + Abyssal tentacle setup, which the plugin auto-detects from the
+     * player's bank. Everything else falls through to the two-arg behaviour.
+     */
+    public static List<SlotReq> requirements(Role role, boolean scytheSetup, boolean oathplateWhip)
+    {
+        if (role == Role.MELEE && !scytheSetup && oathplateWhip)
+            return meleeOathplateWhipReqs();
+        return requirements(role, scytheSetup);
     }
 
     /** Back-compat: defaults to melee. */
@@ -332,6 +354,58 @@ public class Presets
             r.add(new SlotReq("Ranging Potion", sub(RANGING_POTION_4), 1, false));
             r.add(new SlotReq("Rune Pouch", POUCH_ANY, 1, false));
         }
+        return r;
+    }
+
+    // ---- MDPS, No-Scythe, Oathplate + Abyssal tentacle ----
+    // Worn = Oathplate (locked) + tentacle + Avernic defender + ferocious gloves.
+    // Void is carried as the ranged switch. Auto-selected when the player owns
+    // full Oathplate + a tentacle and has no scythe.
+    private static List<SlotReq> meleeOathplateWhipReqs()
+    {
+        List<SlotReq> r = new ArrayList<>();
+
+        // Worn
+        r.add(new SlotReq("Oathplate Helm", HELM_OATH, 1, true));
+        r.add(new SlotReq("Oathplate Chest", OATH_CHEST, 1, true));
+        r.add(new SlotReq("Oathplate Legs", OATH_LEGS, 1, true));
+        r.add(new SlotReq("Melee Cape", CAPE_ANY, 1, true));
+        r.add(new SlotReq("Neck", NECK_ANY, 1, true));
+        r.add(new SlotReq("Abyssal Tentacle", sub(ABYSSAL_TENTACLE), 1, true));
+        r.add(new SlotReq("Defender", DEFENDER_ANY, 1, true));
+        r.add(new SlotReq("Gloves", sub(FEROCIOUS_GLOVES), 1, true));
+        r.add(new SlotReq("Boots", BOOTS_ANY, 1, true));
+        r.add(new SlotReq("Ring", RING_ANY, 1, true));
+        r.add(new SlotReq("Rada's Blessing", sub(RADAS_BLESSING_4), 1, true));
+
+        // Inventory — void ranged switch
+        r.add(new SlotReq("Void Ranger Helm", VOID_RANGER_HELM_ANY, 1, false));
+        r.add(new SlotReq("Void Top", VOID_TOP_ANY, 1, false));
+        r.add(new SlotReq("Void Robe", VOID_ROBE_ANY, 1, false));
+        r.add(new SlotReq("Void Gloves", VOID_GLOVES_ANY, 1, false));
+        r.add(new SlotReq("Range Cape", QUIVER_ANY, 1, false));
+        r.add(new SlotReq("Anguish (or)", sub(NECKLACE_OF_ANGUISH_OR), 1, false));
+        r.add(new SlotReq("Blowpipe", BLOWPIPE_ANY, 1, false));
+
+        // Inventory — specs + utility
+        r.add(new SlotReq("DPS Spec", DPS_SPEC, 1, false));
+        r.add(new SlotReq("Defense Spec", DEF_SPEC, 1, false));
+        r.add(new SlotReq("Salve (e)", sub(SALVE_AMULET_E), 1, false));
+        r.add(new SlotReq("Crystal Halberd", sub(CRYSTAL_HALBERD), 1, false));
+        r.add(new SlotReq("BGS", BGS_ANY, 1, false));
+        r.add(new SlotReq("Sulphur Blades", sub(SULPHUR_BLADES), 1, false));
+        r.add(new SlotReq("Mage Weapon", MAGE_ANY, 1, false));
+        r.add(new SlotReq("Book of the Dead", sub(BOOK_OF_DEAD), 1, false));
+
+        // Inventory — consumables
+        r.add(new SlotReq("Saradomin Brew", sub(SARADOMIN_BREW_4), 3, false));
+        r.add(new SlotReq("Super Restore", sub(SUPER_RESTORE_4), 3, false));
+        r.add(new SlotReq("Anglerfish", sub(ANGLERFISH), 2, false));
+        r.add(new SlotReq("Super Combat", sub(SUPER_COMBAT_4), 2, false));
+        r.add(new SlotReq("Divine Super Combat", sub(DIVINE_SUPER_COMBAT_4), 1, false));
+        r.add(new SlotReq("Ranging Potion", sub(RANGING_POTION_4), 1, false));
+        r.add(new SlotReq("Rune Pouch", POUCH_ANY, 1, false));
+
         return r;
     }
 

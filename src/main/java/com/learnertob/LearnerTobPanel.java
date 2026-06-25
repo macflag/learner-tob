@@ -47,7 +47,7 @@ public class LearnerTobPanel extends PluginPanel
     // so the left edges line up and the equipment cross can be centered.
     private static final int BLOCK_W = 4 * CELL_W + 3 * GAP; // 169
 
-    private boolean scytheSetup = true;
+    private String setupLabel = "Scythe";
     private Role currentRole = Role.MELEE;
     private List<ResolvedSlot> resolvedSlots = new ArrayList<>();
     private String spellbookName = "Arceuus";
@@ -105,7 +105,7 @@ public class LearnerTobPanel extends PluginPanel
     public void setOnRunCheck(Runnable r)                            { this.onRunCheck = r; }
     public void setOnRoleChange(java.util.function.Consumer<Role> c) { this.onRoleChange = c; }
     public void setRole(Role r) { roleCombo.setSelectedItem(r); this.currentRole = r; }
-    public void setScytheSetup(boolean s) { this.scytheSetup = s; }
+    public void setSetupLabel(String s) { this.setupLabel = s; }
 
     public void setResolvedSlots(List<ResolvedSlot> slots,
                                  String spellbookName, boolean spellbookOk,
@@ -195,7 +195,7 @@ public class LearnerTobPanel extends PluginPanel
     // ------------------------------------------------------------------
     public void refresh()
     {
-        titleLabel.setText(currentRole.toString() + " \u2014 " + (scytheSetup ? "Scythe" : "No Scythe"));
+        titleLabel.setText(currentRole.toString() + " \u2014 " + setupLabel);
         subtitleLabel.setText(subtitle);
 
         contentPanel.removeAll();

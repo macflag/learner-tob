@@ -20,11 +20,19 @@ public interface LearnerTobConfig extends Config
 	@ConfigSection(name = "General", description = "Gear check toggle",            position = 0)
 	String generalSection = "general";
 
-	@ConfigSection(name = "Popup",   description = "Gear check popup appearance",  position = 1)
+	@ConfigSection(name = "Raid checklist", description = "Pre-raid entry checks", position = 1)
+	String checklistSection = "checklist";
+
+	@ConfigSection(name = "Maiden", description = "Maiden room prompts and markers", position = 2)
+	String maidenSection = "maiden";
+
+	@ConfigSection(name = "Popup",   description = "Gear check popup appearance",  position = 3)
 	String popupSection = "popup";
 
-	@ConfigSection(name = "Raid checklist", description = "Pre-raid entry checks", position = 2)
-	String checklistSection = "checklist";
+	@ConfigSection(name = "Testing (dev)", closedByDefault = true,
+			description = "Hide items from the plugin so you can test other roles/setups without banking gear",
+			position = 4)
+	String testingSection = "testing";
 
 	// --- General ---
 	@ConfigItem(keyName = "enableGearCheck", name = "Enable gear check",
@@ -94,6 +102,53 @@ public interface LearnerTobConfig extends Config
 			description = "Auto-run the entry checklist at the raid-start door (silent unless there's an issue).",
 			position = 5, section = checklistSection)
 	default boolean raidEntryCheck() { return true; }
+
+	@ConfigItem(keyName = "maidenSetupCheck", name = "Maiden setup prompt",
+			description = "On entering Maiden, prompt to drop Salve and equip your maul/hammer; clears once done.",
+			position = 0, section = maidenSection)
+	default boolean maidenSetupCheck() { return true; }
+
+	@ConfigItem(keyName = "maidenHpPrompts", name = "Maiden HP prompts",
+			description = "Role-specific call-outs as Maiden drops past 75 / 55 / 35% HP.",
+			position = 1, section = maidenSection)
+	default boolean maidenHpPrompts() { return true; }
+
+	@ConfigItem(keyName = "maidenPrayerPrompt", name = "Maiden prayer prompt",
+			description = "On entering Maiden, flash which prayers to flick (Magic + Piety/Rigour/Augury).",
+			position = 2, section = maidenSection)
+	default boolean maidenPrayerPrompt() { return true; }
+
+	@ConfigItem(keyName = "maidenPrayerStay", name = "Prayer prompt: stay until correct",
+			description = "On: the prayer prompt stays until you have the right prayers active. "
+					+ "Off: a single flash on entry, skipped if you're already praying correctly.",
+			position = 3, section = maidenSection)
+	default boolean maidenPrayerStay() { return false; }
+
+	@ConfigItem(keyName = "maidenTileMarkers", name = "Maiden tile markers",
+			description = "Draw your role's 'stand here' box on the floor during Maiden.",
+			position = 4, section = maidenSection)
+	default boolean maidenTileMarkers() { return true; }
+
+	// --- Testing (dev): pretend you don't own certain items, to test other setups ---
+	@ConfigItem(keyName = "testHideScythe", name = "Hide Scythe",
+			description = "Pretend you own no scythe (forces the No-Scythe / Oathplate-Whip setups).",
+			position = 0, section = testingSection)
+	default boolean testHideScythe() { return false; }
+
+	@ConfigItem(keyName = "testHideOathplate", name = "Hide Oathplate",
+			description = "Pretend you own no Oathplate (helm/chest/legs, any variant).",
+			position = 1, section = testingSection)
+	default boolean testHideOathplate() { return false; }
+
+	@ConfigItem(keyName = "testHideTentacle", name = "Hide Tentacle",
+			description = "Pretend you own no Abyssal tentacle (blocks the MDPS Oathplate-Whip setup).",
+			position = 2, section = testingSection)
+	default boolean testHideTentacle() { return false; }
+
+	@ConfigItem(keyName = "testHideIds", name = "Hide item IDs",
+			description = "Comma-separated item IDs to also hide from the plugin (e.g. 22325,11832).",
+			position = 3, section = testingSection)
+	default String testHideIds() { return ""; }
 
 	// Hidden — role is now set via the sidebar panel dropdown
 	@ConfigItem(keyName = "role", name = "", description = "", hidden = true)

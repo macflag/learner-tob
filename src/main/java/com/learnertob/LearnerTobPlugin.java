@@ -29,6 +29,10 @@ import net.runelite.api.Player;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.Skill;
 import net.runelite.api.Varbits;
+import net.runelite.api.NPC;
+import net.runelite.api.NPCComposition;
+import net.runelite.api.Prayer;
+import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.GameStateChanged;
@@ -88,14 +92,41 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	@Inject private ClientToolbar clientToolbar;
 	@Inject private ClientThread clientThread;
 	@Inject private GearCheckOverlay overlay;
+	@Inject private TileMarkerOverlay tileOverlay;
 	@Inject private LearnerTobPanel panel;
 
 	private NavigationButton navButton;
 	private boolean lastScytheSetup = true;
+	private boolean lastOathWhip = false;
+
+	// Maiden phases by NPC id (she transforms at 70/50/30%). Normal + Story mode.
+	private static final Set<Integer> MAIDEN_IDS = new HashSet<>(java.util.Arrays.asList(
+			8360, 8361, 8362, 8363, 8364, 8365,
+			10814, 10815, 10816, 10817, 10818, 10819));
+	// Nylocas Matomenos (the nylos freezers target): Entry + Normal.
+	private static final Set<Integer> NYLO_IDS = new HashSet<>(java.util.Arrays.asList(10820, 8366));
+	// Blood spawns (all roles): Entry + Normal.
+	private static final Set<Integer> BLOOD_IDS = new HashSet<>(java.util.Arrays.asList(8367, 10821, 10829));
+	private boolean maiden75, maiden55, maiden35;
+
+	// Role-specific "stand here" boxes in the Maiden room: {minX, maxX, minY, maxY}, plane 0.
+	private static final int[] BOX_MDPS_NOSCY = {3166, 3169, 4452, 4455};
+	private static final int[] BOX_RDPS_NOSCY = {3166, 3169, 4437, 4440};
+	private static final int[] BOX_NFRZ       = {3168, 3171, 4452, 4455};
+	private static final int[] BOX_SFRZ       = {3169, 3172, 4438, 4441};
 
 	// Reusable proximity zones. The raid-start door is the first; Phase 3
 	// rooms each add their own ZoneTrigger here.
 	private final List<ZoneTrigger> zones = new ArrayList<>();
+	private ZoneTrigger maidenZone;
+	private boolean maidenPromptActive = false;
+	private boolean maidenInBox = false;        // in the setup box last tick
+	private boolean maidenSetupHandled = false; // shown + resolved this raid
+	private ZoneTrigger maidenPrayerZone;
+	private boolean maidenPrayerHandled = false; // prayer prompt shown/resolved this raid
+	private boolean maidenPrayerActive = false;  // comply prayer popup showing
+	private boolean maidenInPrayerBox = false;
+	private boolean maidenPrayerArmed = false; // stay-mode: armed on entry, holds until correct
 
 	@Provides
 	LearnerTobConfig provideConfig(ConfigManager cm)
@@ -107,6 +138,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	protected void startUp()
 	{
 		overlayManager.add(overlay);
+		overlayManager.add(tileOverlay);
 		mouseManager.registerMouseListener(this);
 
 		navButton = NavigationButton.builder()
@@ -133,15 +165,29 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private void buildZones()
 	{
 		zones.clear();
-		// Raid-start door lobby box (inclusive bounds), plane 0.
-		zones.add(new ZoneTrigger("Raid entry", 3666, 3677, 3215, 3223, 0,
-				this::raidEntryProblems));
+		// Raid-start door lobby box (inclusive bounds), plane 0. Fires only on a
+		// walk-in from the WEST (left) edge, so leaving the raid (a teleport back
+		// into the lobby) doesn't re-trigger it.
+		zones.add(new ZoneTrigger("Raid entry", 3666, 3671, 3215, 3223, 0,
+				this::raidEntryProblems, ZoneTrigger.EntrySide.WEST));
+
+		// Maiden start box (region 12613). Handled separately from the click
+		// zones above: it shows a COMPLY prompt that stays until the player
+		// drops Salve and equips their maul/hammer.
+		maidenZone = new ZoneTrigger("Maiden \u2014 setup", 3186, 3194, 4443, 4448, 0,
+				this::maidenSetupSteps);
+
+		// Maiden prayer box (just west of the setup box). Single flashing prompt
+		// on entry telling you which prayers to flick.
+		maidenPrayerZone = new ZoneTrigger("Maiden \u2014 prayers", 3181, 3184, 4443, 4450, 0,
+				java.util.Collections::emptyList);
 	}
 
 	@Override
 	protected void shutDown()
 	{
 		overlayManager.remove(overlay);
+		overlayManager.remove(tileOverlay);
 		mouseManager.unregisterMouseListener(this);
 		clientToolbar.removeNavigation(navButton);
 		overlay.dismiss();
@@ -150,6 +196,32 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	// ------------------------------------------------------------------
 	//  Container helpers
 	// ------------------------------------------------------------------
+
+	/**
+	 * Testing helper: item IDs the plugin should pretend you do NOT own, so you
+	 * can walk other roles/setups without banking gear. Built from the Testing
+	 * config section. Empty unless a hide toggle (or the ID field) is set.
+	 */
+	private Set<Integer> hiddenIds()
+	{
+		Set<Integer> hidden = new HashSet<>();
+		if (config.testHideScythe())   hidden.addAll(Presets.SCYTHE_ANY);
+		if (config.testHideOathplate())
+		{
+			hidden.addAll(Presets.HELM_OATH);
+			hidden.addAll(Presets.OATH_CHEST);
+			hidden.addAll(Presets.OATH_LEGS);
+		}
+		if (config.testHideTentacle()) hidden.add(Presets.ABYSSAL_TENTACLE);
+		for (String tok : config.testHideIds().split(","))
+		{
+			tok = tok.trim();
+			if (tok.isEmpty()) continue;
+			try { hidden.add(Integer.parseInt(tok)); }
+			catch (NumberFormatException ignored) { }
+		}
+		return hidden;
+	}
 
 	private Set<Integer> readyIds()
 	{
@@ -179,8 +251,9 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	{
 		ItemContainer c = client.getItemContainer(which);
 		if (c == null) return;
+		Set<Integer> hidden = hiddenIds();
 		for (Item i : c.getItems())
-			if (i.getId() > 0) ids.add(i.getId());
+			if (i.getId() > 0 && !hidden.contains(i.getId())) ids.add(i.getId());
 	}
 
 	private Map<Integer, Integer> containerCounts(InventoryID which)
@@ -188,8 +261,9 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		Map<Integer, Integer> map = new LinkedHashMap<>();
 		ItemContainer c = client.getItemContainer(which);
 		if (c == null) return map;
+		Set<Integer> hidden = hiddenIds();
 		for (Item i : c.getItems())
-			if (i.getId() > 0)
+			if (i.getId() > 0 && !hidden.contains(i.getId()))
 				map.merge(i.getId(), Math.max(1, i.getQuantity()), Integer::sum);
 		return map;
 	}
@@ -250,11 +324,11 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		switch (role)
 		{
 			case MELEE:
-				// Arceuus: Blood, Soul, Fire, Aether (Nature if using Resurrect)
-				runes.put(565,  "Blood");   // Blood rune
-				runes.put(566,  "Soul");    // Soul rune
-				runes.put(554,  "Fire");    // Fire rune
-				runes.put(9075, "Astral");  // Astral (Reanimate)
+				// Arceuus: Fire, Aether, Blood, Death
+				runes.put(554,   "Fire");   // Fire rune
+				runes.put(30843, "Aether"); // Aether rune
+				runes.put(565,   "Blood");  // Blood rune
+				runes.put(560,   "Death");  // Death rune
 				break;
 			case RANGED:
 				// Lunar: Law, Aether, Blood, Death, Lava, Astral — checked across pouch + inventory
@@ -286,24 +360,28 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private void refreshFromOwned()
 	{
 		Set<Integer> owned = ownedIds();
+		Role role = config.role();
 		if (!owned.isEmpty())
 		{
 			lastScytheSetup = Presets.hasScythe(owned);
-			panel.setScytheSetup(lastScytheSetup);
+			lastOathWhip    = computeOathWhip(role, lastScytheSetup, owned);
+			String label = setupLabel(lastScytheSetup, lastOathWhip);
+			if (!hiddenIds().isEmpty()) label += "  [TEST]";
+			panel.setSetupLabel(label);
 		}
 
 		Set<Integer> ready = readyIds();
 		Set<Integer> bank  = bankOnlyIds();
 		Map<Integer, Integer> pouchContents = runePouchContents();
 
-		Role role      = config.role();
-		boolean scythe = lastScytheSetup;
+		boolean scythe   = lastScytheSetup;
+		boolean oathWhip = lastOathWhip;
 
 		int expectedBook = Presets.expectedSpellbook(role);
 		boolean bookOk   = expectedBook == readSpellbook();
 		String  bookName = spellbookName(expectedBook);
 
-		List<SlotReq> reqs = Presets.requirements(role, scythe);
+		List<SlotReq> reqs = Presets.requirements(role, scythe, oathWhip);
 		List<LearnerTobPanel.ResolvedSlot> slots = resolveSlots(reqs, ready, bank);
 
 		// Append rune slots (tagged with sentinel equipSlot = -99).
@@ -452,7 +530,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		// OSRS registers the walk/interact on the PRESS, so dismiss and consume
 		// here (not on click) to stop the character moving. Presses elsewhere
 		// pass straight through so running/eating is unaffected.
-		if (overlay.isVisible() && overlay.containsPoint(e.getPoint()))
+		if (overlay.isVisible() && overlay.clickCloses() && overlay.containsPoint(e.getPoint()))
 		{
 			overlay.dismiss();
 			consumePopupClick = true;
@@ -496,32 +574,353 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	@Subscribe
 	public void onGameTick(GameTick tick)
 	{
-		if (!config.raidEntryCheck())
-			return;
-
 		Player local = client.getLocalPlayer();
 		if (local == null)
 			return;
 
-		WorldPoint wp = local.getWorldLocation();
+		// Per-raid state clears only when you're out of the Theatre instance
+		// (in the lobby), NOT on every LOADING — rooms transition mid-raid.
+		if (!client.isInInstancedRegion())
+		{
+			maidenSetupHandled = false;
+			maidenPrayerHandled = false;
+			maidenInPrayerBox = false;
+			maidenPrayerArmed = false;
+			maiden75 = maiden55 = maiden35 = false;
+		}
+
+		WorldPoint wp = playerWorldPoint(local);
 		if (wp == null)
 			return;
 
-		for (ZoneTrigger zone : zones)
+		// Raid-start door — push-style, click-to-close.
+		if (config.raidEntryCheck())
 		{
-			if (!zone.entered(wp))
-				continue;
+			for (ZoneTrigger zone : zones)
+			{
+				if (!zone.entered(wp))
+					continue;
 
-			List<String> problems = zone.runChecks();
-			if (problems.isEmpty())
-				continue; // dark cockpit: stay silent when everything is set
+				List<String> problems = zone.runChecks();
+				if (problems.isEmpty())
+					continue; // dark cockpit: stay silent when everything is set
 
-			String title = zone.getTitle() + " \u2014 " + problems.size() + " issue(s)";
-			// Click-inside to close, no timer (you may be mid-action at the door).
-			overlay.showResult(title, problems, GearCheckOverlay.DismissMode.CLICK, 0, false);
-			if (problems.size() >= LOTS_THRESHOLD)
-				for (String p : problems) message("  - " + p);
+				String title = zone.getTitle() + " \u2014 " + problems.size() + " issue(s)";
+				// Click-inside to close, no timer (you may be mid-action at the door).
+				overlay.showResult(title, problems, GearCheckOverlay.DismissMode.CLICK, 0, false);
+				if (problems.size() >= LOTS_THRESHOLD)
+					for (String p : problems) message("  - " + p);
+			}
 		}
+
+		// Maiden prayers — single flashing prompt on entry.
+		updateMaidenPrayer(wp);
+
+		// Maiden setup — comply-style, stays up until done.
+		updateMaidenPrompt(wp);
+
+		// Maiden HP call-outs (75 / 55 / 35%).
+		updateMaidenHp();
+
+		// Role-specific standing box on the floor.
+		updateMaidenTiles();
+	}
+
+	/**
+	 * Pushes the standing-box for the current role/setup to the tile overlay,
+	 * shown only while Maiden is in the room. Scythe setups melee her and get
+	 * no box; the no-scythe (ranged) setups and freezers each get their spot.
+	 */
+	private void updateMaidenTiles()
+	{
+		if (!config.maidenTileMarkers())
+		{
+			tileOverlay.set(null, null, null);
+			return;
+		}
+
+		Role role = config.role();
+		boolean freeze = role == Role.NORTH_FREEZE || role == Role.SOUTH_FREEZE;
+
+		NPC maiden = null;
+		List<TileMarkerOverlay.Mark> nylos = new ArrayList<>();
+		List<TileMarkerOverlay.Mark> bloods = new ArrayList<>();
+
+		// Single pass over the NPCs: find Maiden (the room gate), and collect the
+		// true tiles for nylos (freeze roles only) and blood spawns (everyone).
+		for (NPC npc : client.getNpcs())
+		{
+			if (npc == null)
+				continue;
+			int id = npc.getId();
+			if (MAIDEN_IDS.contains(id))
+				maiden = npc;
+
+			WorldPoint wl = npc.getWorldLocation(); // server (true) SW tile
+			if (wl == null)
+				continue;
+			NPCComposition comp = npc.getTransformedComposition();
+			int size = comp != null ? comp.getSize() : 1;
+			if (freeze && NYLO_IDS.contains(id))
+				nylos.add(new TileMarkerOverlay.Mark(wl, size));
+			if (BLOOD_IDS.contains(id))
+				bloods.add(new TileMarkerOverlay.Mark(wl, size));
+		}
+
+		// Everything only shows while Maiden is in the room.
+		int[] box = null;
+		if (maiden != null)
+		{
+			switch (role)
+			{
+				case MELEE:        if (!lastScytheSetup) box = BOX_MDPS_NOSCY; break;
+				case RANGED:       if (!lastScytheSetup) box = BOX_RDPS_NOSCY; break;
+				case NORTH_FREEZE: box = BOX_NFRZ; break;
+				case SOUTH_FREEZE: box = BOX_SFRZ; break;
+				default: break;
+			}
+		}
+		else
+		{
+			nylos.clear();
+			bloods.clear();
+		}
+
+		tileOverlay.set(box, nylos, bloods);
+	}
+
+	/**
+	 * Player world point that works inside instances. In an instanced region
+	 * getWorldLocation() returns dynamic coords; the room boxes are defined in
+	 * template coords, so translate via the instance template chunks (same as
+	 * RuneLite's own dev-tools location overlay).
+	 */
+	private WorldPoint playerWorldPoint(Player local)
+	{
+		LocalPoint lp = local.getLocalLocation();
+		if (client.isInInstancedRegion() && lp != null)
+			return WorldPoint.fromLocalInstance(client, lp);
+		return local.getWorldLocation();
+	}
+
+	/** The Maiden NPC currently in the scene, or null. */
+	private NPC findMaiden()
+	{
+		for (NPC npc : client.getNpcs())
+			if (npc != null && MAIDEN_IDS.contains(npc.getId()))
+				return npc;
+		return null;
+	}
+
+	/**
+	 * Maiden HP call-outs. Health comes as a ratio (0..scale); the server never
+	 * sends real HP, so we work in percent. Fires the role-specific prompt once
+	 * as she crosses 75 / 55 / 35% (the early warnings before each nylo spawn).
+	 */
+	private void updateMaidenHp()
+	{
+		if (!config.maidenHpPrompts())
+			return;
+
+		NPC maiden = findMaiden();
+		if (maiden == null)
+			return; // flags reset on region change (new fight)
+
+		int ratio = maiden.getHealthRatio();
+		int scale = maiden.getHealthScale();
+		if (ratio < 0 || scale <= 0)
+			return; // no health bar yet (not engaged)
+
+		double pct = 100.0 * ratio / scale;
+		Role role  = config.role();
+
+		if (!maiden75 && pct <= 75) { maiden75 = true; fireMaidenHp(role, 75); }
+		if (!maiden55 && pct <= 55) { maiden55 = true; fireMaidenHp(role, 55); }
+		if (!maiden35 && pct <= 35) { maiden35 = true; fireMaidenHp(role, 35); }
+	}
+
+	private void fireMaidenHp(Role role, int threshold)
+	{
+		overlay.showResult("Maiden \u2014 " + threshold + "%",
+				maidenHpText(role, threshold),
+				GearCheckOverlay.DismissMode.TIMED, 3, true);
+	}
+
+	/** Role-specific Maiden call-out text for a threshold. */
+	private List<String> maidenHpText(Role role, int t)
+	{
+		switch (role)
+		{
+			case NORTH_FREEZE:
+			case SOUTH_FREEZE:
+				return java.util.Collections.singletonList("Get ready to freeze");
+			case RANGED:
+				return java.util.Collections.singletonList(
+						t == 35 ? "Stay on Maiden" : "Kill S1, then chin the clump");
+			case MELEE:
+			default:
+				return java.util.Collections.singletonList(
+						t == 35 ? "Stay on Maiden" : "Kill N1 and N2");
+		}
+	}
+
+	/**
+	 * Maiden prayer prompt: a single flashing reminder, fired once per raid the
+	 * first time you stand in the prayer box, telling you which prayers to flick.
+	 */
+	private void updateMaidenPrayer(WorldPoint wp)
+	{
+		if (!config.maidenPrayerPrompt())
+			return;
+
+		boolean inBox   = maidenPrayerZone.contains(wp);
+		boolean correct = prayersCorrect(config.role(), lastScytheSetup);
+
+		if (config.maidenPrayerStay())
+		{
+			// Stay-until-correct (Option A): arm on entering the prayer box, then
+			// hold the prompt until the prayers are actually right \u2014 even after
+			// you've walked out of the box. Clears only when correct (or new raid).
+			if (maidenPrayerHandled)
+				return;
+			if (inBox)
+				maidenPrayerArmed = true;
+			if (!maidenPrayerArmed)
+				return;
+			if (correct)
+			{
+				if (maidenPrayerActive) { overlay.dismiss(); maidenPrayerActive = false; }
+				maidenPrayerHandled = true;
+				return;
+			}
+			overlay.showResult("Maiden \u2014 prayers",
+					prayerText(config.role(), lastScytheSetup),
+					GearCheckOverlay.DismissMode.COMPLY, 0, true);
+			maidenPrayerActive = true;
+		}
+		else
+		{
+			// Flash-once: single timed flash on entry, skipped if already correct.
+			if (maidenPrayerHandled || !inBox)
+				return;
+			if (!correct)
+				overlay.showResult("Maiden \u2014 prayers",
+						prayerText(config.role(), lastScytheSetup),
+						GearCheckOverlay.DismissMode.TIMED, 3, true);
+			maidenPrayerHandled = true;
+		}
+	}
+
+	/** The offensive prayer for the current style. */
+	private Prayer offensivePrayer(Role role, boolean scythe)
+	{
+		switch (role)
+		{
+			case NORTH_FREEZE:
+			case SOUTH_FREEZE:
+				return Prayer.AUGURY;
+			case MELEE:
+			case RANGED:
+			default:
+				// Only the scythe setup melees Maiden (Piety); every other setup,
+				// including MDPS Oathplate-Whip, ranges her (Rigour).
+				return scythe ? Prayer.PIETY : Prayer.RIGOUR;
+		}
+	}
+
+	/** True if Protect from Magic AND the correct offensive prayer are both on. */
+	private boolean prayersCorrect(Role role, boolean scythe)
+	{
+		return client.isPrayerActive(Prayer.PROTECT_FROM_MAGIC)
+				&& client.isPrayerActive(offensivePrayer(role, scythe));
+	}
+
+	/** Protect Magic plus the offensive prayer for the current style. */
+	private List<String> prayerText(Role role, boolean scythe)
+	{
+		Prayer off  = offensivePrayer(role, scythe);
+		String name = off == Prayer.AUGURY ? "Augury" : off == Prayer.PIETY ? "Piety" : "Rigour";
+		return java.util.Collections.singletonList("Pray Magic and " + name);
+	}
+
+	/**
+	 * Maiden entry prompt: while standing in the Maiden start box, show the
+	 * remaining setup steps (drop Salve, equip maul/hammer) and clear the popup
+	 * the moment they're all done. Re-evaluated every tick so it tracks progress.
+	 */
+	private void updateMaidenPrompt(WorldPoint wp)
+	{
+		// Prayers take precedence: while that comply prompt is up, hold the setup
+		// prompt so the two don't fight over the popup.
+		if (maidenPrayerActive)
+			return;
+
+		boolean inBox = config.maidenSetupCheck() && maidenZone.contains(wp);
+
+		if (!inBox)
+		{
+			if (maidenPromptActive)
+			{
+				overlay.dismiss();
+				maidenPromptActive = false;
+			}
+			// Leaving the box (after having been in it) ends the setup window, so
+			// walking back out the same way later won't re-trigger the prompt.
+			if (maidenInBox)
+				maidenSetupHandled = true;
+			maidenInBox = false;
+			return;
+		}
+
+		maidenInBox = true;
+		if (maidenSetupHandled)
+			return; // already shown + resolved this raid
+
+		List<String> steps = maidenSetupSteps();
+		if (steps.isEmpty())
+		{
+			if (maidenPromptActive)
+			{
+				overlay.dismiss();
+				maidenPromptActive = false;
+			}
+			maidenSetupHandled = true; // complied
+			return;
+		}
+
+		overlay.showResult("Maiden \u2014 setup", steps,
+				GearCheckOverlay.DismissMode.COMPLY, 0, true);
+		maidenPromptActive = true;
+	}
+
+	/** Remaining Maiden setup steps; empty = complied. */
+	private List<String> maidenSetupSteps()
+	{
+		List<String> steps = new ArrayList<>();
+		Map<Integer, Integer> worn = containerCounts(InventoryID.EQUIPMENT);
+		Map<Integer, Integer> inv  = containerCounts(InventoryID.INVENTORY);
+
+		boolean salveGone = !worn.containsKey(Presets.SALVE_AMULET_E)
+				&& !inv.containsKey(Presets.SALVE_AMULET_E);
+		if (!salveGone)
+			steps.add("Drop Salve");
+
+		boolean maulEquipped = false;
+		for (int id : Presets.DEF_SPEC)
+			if (worn.containsKey(id)) { maulEquipped = true; break; }
+		if (!maulEquipped)
+			steps.add("Equip " + defSpecName());
+
+		return steps;
+	}
+
+	/** Names the player's owned defence-reduction spec weapon for the prompt. */
+	private String defSpecName()
+	{
+		Set<Integer> owned = ownedIds();
+		if (owned.contains(Presets.ELDER_MAUL))      return "Elder Maul";
+		if (owned.contains(Presets.DRAGON_WARHAMMER)) return "Dragon Warhammer";
+		return "Maul/Hammer";
 	}
 
 	@Subscribe
@@ -534,6 +933,10 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 				|| state == GameState.LOGIN_SCREEN)
 		{
 			for (ZoneTrigger zone : zones) zone.reset();
+			overlay.dismiss();
+			maidenPromptActive = false;
+			maidenInBox = false;
+			maidenPrayerActive = false;
 		}
 	}
 
@@ -544,7 +947,22 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	 */
 	private List<String> raidEntryProblems()
 	{
-		return collectProblems(config.role(), lastScytheSetup);
+		return collectProblems(config.role(), lastScytheSetup, lastOathWhip);
+	}
+
+	/** MDPS-only third setup: no scythe, a full Oathplate set owned, and a tentacle. */
+	private boolean computeOathWhip(Role role, boolean scythe, Set<Integer> owned)
+	{
+		return role == Role.MELEE && !scythe
+				&& Presets.hasFullOathplate(owned)
+				&& owned.contains(Presets.ABYSSAL_TENTACLE);
+	}
+
+	/** Panel/title setup label for the current state. */
+	private String setupLabel(boolean scythe, boolean oathWhip)
+	{
+		if (scythe) return "Scythe";
+		return oathWhip ? "Oathplate Whip" : "No Scythe";
 	}
 
 	/** Boost-presence check: stat boosted above its base level (decay-tolerant). */
@@ -571,14 +989,15 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 			message("Gear check is turned off.");
 			return;
 		}
-		Role role      = config.role();
-		boolean scythe = lastScytheSetup;
+		Role role        = config.role();
+		boolean scythe   = lastScytheSetup;
+		boolean oathWhip = lastOathWhip;
 
-		List<String> problems = collectProblems(role, scythe);
+		List<String> problems = collectProblems(role, scythe, oathWhip);
 
 		String title = problems.isEmpty()
 				? "Gear check \u2014 no issues"
-				: role + " " + (scythe ? "Scythe" : "No-Scythe") + " \u2014 " + problems.size() + " issue(s)";
+				: role + " " + setupLabel(scythe, oathWhip) + " \u2014 " + problems.size() + " issue(s)";
 
 		// Manual check is a PULL: confirm even when clean, using the global dismiss mode.
 		overlay.showResult(title, problems);
@@ -598,7 +1017,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	 * spellbook, auto-retaliate, the full pre-pot boost matrix, HP overheal
 	 * (3-state), and bank-upgrade hints.
 	 */
-	private List<String> collectProblems(Role role, boolean scythe)
+	private List<String> collectProblems(Role role, boolean scythe, boolean oathWhip)
 	{
 		Map<Integer, Integer> wornCounts = containerCounts(InventoryID.EQUIPMENT);
 		Map<Integer, Integer> invCounts  = containerCounts(InventoryID.INVENTORY);
@@ -606,7 +1025,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		List<String> problems = new ArrayList<>();
 
 		// Gear + consumables (equipped vs. carried).
-		for (SlotReq req : Presets.requirements(role, scythe))
+		for (SlotReq req : Presets.requirements(role, scythe, oathWhip))
 		{
 			Map<Integer, Integer> pool = req.equipped ? wornCounts : invCounts;
 			int have = 0;

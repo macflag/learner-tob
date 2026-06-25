@@ -37,7 +37,7 @@ import net.runelite.client.ui.overlay.components.TitleComponent;
  */
 public class GearCheckOverlay extends OverlayPanel
 {
-    public enum DismissMode { CLICK, TIMED }
+    public enum DismissMode { CLICK, TIMED, COMPLY }
 
     private static final long FLASH_PERIOD_MS = 400;
     // Dark cockpit: a clean result is neutral, never green.
@@ -119,10 +119,10 @@ public class GearCheckOverlay extends OverlayPanel
         return p != null && b != null && b.width > 0 && b.height > 0 && b.contains(p);
     }
 
-    /** Whether a click inside should close this popup (true in every mode). */
+    /** Whether a click inside should close this popup. COMPLY popups persist until satisfied. */
     public boolean clickCloses()
     {
-        return true;
+        return dismissMode != DismissMode.COMPLY;
     }
 
     @Override
@@ -140,6 +140,11 @@ public class GearCheckOverlay extends OverlayPanel
             case TIMED:
                 clickMode = false;
                 secs = timedSeconds;
+                break;
+            case COMPLY:
+                // Stays up until the plugin clears it (player complies); no timer, no click-close.
+                clickMode = false;
+                secs = 0;
                 break;
             case CLICK:
             default:

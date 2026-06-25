@@ -73,6 +73,15 @@ Detail on each phase lives on the **[Roadmap wiki page](../../wiki/Roadmap)**.
 
 ## Changelog
 
+### 1.1.1 — Maiden
+- Maiden setup prompt on entry: reminds you to drop Salve and equip Elder Maul or Dragon Warhammer (comply-style, once per raid)
+- Maiden prayer prompt on entry: tells you which prayers to activate based on your role and setup (Magic + Piety for scythe, Rigour for all other MDPS/RDPS including Oathplate-Whip, Augury for freezers). Two modes: flash-once (skipped if already praying correctly) or stay-until-correct (toggle in settings)
+- Maiden HP call-outs at 75%, 55%, and 35% with role-specific instructions
+- Floor tile markers: role-specific 4x4 standing box, Nylocas Matomenos true-tile (SFRZ/NFRZ, darker red), blood spawn true-tile (all roles, grey). All colors tuned to the room palette
+- Config restructured: Maiden settings moved to their own section; Popup section moved above Testing
+- MDPS Oathplate-Whip variant: new third MELEE setup, auto-detected from gear
+- RDPS fixes: Oathplate ordering, chin badge display, rune pouch filtering
+
 ### 1.1 — Phase 2
 - Sidebar loadout visualizer (inventory grid, equipment cross, spellbook, rune pouch)
 - Full pre-raid checklist: spellbook, runes, auto-retaliate, pre-pot boost matrix, HP overheal
