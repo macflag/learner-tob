@@ -219,7 +219,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 				java.util.Collections::emptyList);
 
 		// Bloat setup box: equip Crystal Halberd and Salve.
-		bloatSetupZone = new ZoneTrigger("Bloat \u2014 setup", 3318, 3322, 4446, 4449, 0,
+		bloatSetupZone = new ZoneTrigger("Bloat \u2014 setup", 3317, 3320, 4446, 4449, 0,
 				java.util.Collections::emptyList);
 		// Bloat prayer box: arm Ranged + Piety prayers.
 		bloatPrayerZone = new ZoneTrigger("Bloat \u2014 prayers", 3305, 3305, 4446, 4449, 0,
