@@ -158,10 +158,10 @@ public interface LearnerTobConfig extends Config
 			position = 4, section = bloatSection)
 	default boolean bloatHidePlayers() { return true; }
 
-	@ConfigItem(keyName = "bloatHideFloor", name = "Recolor floor tiles",
-			description = "Recolor Bloat's danger floor tiles to a uniform dark teal so the room is easier to read.",
+	@ConfigItem(keyName = "bloatRecolorFloor", name = "Recolor floor tiles",
+			description = "Recolor Bloat floor to skybox teal (#135357) so the danger tiles are easy to read.",
 			position = 5, section = bloatSection)
-	default boolean bloatHideFloor() { return true; }
+	default boolean bloatRecolorFloor() { return true; }
 
 	// --- Testing (dev): pretend you don't own certain items, to test other setups ---
 	@ConfigItem(keyName = "testHideScythe", name = "Hide Scythe",

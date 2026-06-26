@@ -24,6 +24,8 @@ import net.runelite.api.Client;
 import net.runelite.api.EnumID;
 import net.runelite.api.GameState;
 import net.runelite.api.GroundObject;
+import net.runelite.api.JagexColor;
+import net.runelite.api.Model;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.Player;
@@ -108,6 +110,9 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private static final int BLOAT_ID = 8359;
 	private static final Set<Integer> BLOAT_FLOOR_IDS = new HashSet<>(java.util.Arrays.asList(
 			32941, 32942, 32943, 32944, 32945, 32946, 32947, 32948));
+	// HSL target for the floor recolor (#135357 at brightness 1.0 = no gamma shift).
+	// Lower brightness (e.g. 0.7) toward 0 if it renders too pale in-game.
+	private static final short BLOAT_FLOOR_HSL = JagexColor.rgbToHSL(0x135357, 1.0d);
 
 	// Maiden phases by NPC id (she transforms at 70/50/30%). Normal + Story mode.
 	private static final Set<Integer> MAIDEN_IDS = new HashSet<>(java.util.Arrays.asList(
@@ -147,7 +152,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private ZoneTrigger bloatPostZone;
 	private boolean bloatSetupHandled = false;
 	private boolean bloatSetupPromptActive = false;
-	private boolean bloatInSetupBox = false;
+	private boolean bloatSetupArmed = false;
 	private boolean bloatPrayerHandled = false;
 	private boolean bloatPrayerArmed = false;
 	private boolean bloatPrayerActive = false;
@@ -214,7 +219,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 				java.util.Collections::emptyList);
 
 		// Bloat setup box: equip Crystal Halberd and Salve.
-		bloatSetupZone = new ZoneTrigger("Bloat \u2014 setup", 3317, 3322, 4446, 4449, 0,
+		bloatSetupZone = new ZoneTrigger("Bloat \u2014 setup", 3318, 3322, 4446, 4449, 0,
 				java.util.Collections::emptyList);
 		// Bloat prayer box: arm Ranged + Piety prayers.
 		bloatPrayerZone = new ZoneTrigger("Bloat \u2014 prayers", 3305, 3305, 4446, 4449, 0,
@@ -640,7 +645,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 			maiden75 = maiden55 = maiden35 = maiden0 = false;
 
 			bloatSetupHandled = false;
-			bloatInSetupBox = false;
+			bloatSetupArmed = false;
 			bloatPrayerHandled = false;
 			bloatPrayerArmed = false;
 			bloatPostHandled = false;
@@ -783,50 +788,50 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	}
 
 	/**
-	 * Hides Bloat danger floor tiles by nulling them out of the scene on spawn.
-	 * GroundObjectSpawned re-fires on each room/scene load so the hide reapplies
-	 * automatically on re-entry. Toggling bloatHideFloor off mid-session will not
-	 * restore already-hidden tiles until the next scene load — that is intentional.
+	 * Recolors Bloat danger floor tiles to #135357 (dark teal) on spawn.
+	 * GroundObjectSpawned re-fires on each room/scene load so the recolor
+	 * reapplies automatically on re-entry without any despawn handler.
 	 *
-	 * Documented fallback (not wired up): model recolor via
-	 * groundObject.getRenderable().getModel().getFaceColors1/2/3() (int[])
-	 * overwritten with JagexColor.rgbToHSL(0x135357, brightness), brightness ~1.0
-	 * tuned down toward 0.7 if the result appears too pale.
+	 * setSceneId(0) forces SceneUploader to re-read the face colors on the next
+	 * frame — without it the recolor is written but never displayed.
+	 * BLOAT_FLOOR_HSL brightness is tunable: lower toward 0.7 if it renders
+	 * too pale; raise above 1.0 to darken.
 	 */
 	@Subscribe
 	public void onGroundObjectSpawned(GroundObjectSpawned event)
 	{
-		if (!config.bloatHideFloor()) return;
+		if (!config.bloatRecolorFloor()) return;
 		GroundObject go = event.getGroundObject();
-		if (BLOAT_FLOOR_IDS.contains(go.getId()))
-			event.getTile().setGroundObject(null);
+		if (!BLOAT_FLOOR_IDS.contains(go.getId())) return;
+		Renderable r = go.getRenderable();
+		Model m = (r instanceof Model) ? (Model) r : (r != null ? r.getModel() : null);
+		if (m == null) return;
+		int[] fc1 = m.getFaceColors1();
+		int[] fc2 = m.getFaceColors2();
+		int[] fc3 = m.getFaceColors3();
+		int hsl = BLOAT_FLOOR_HSL & 0xFFFF;
+		if (fc1 != null) for (int i = 0; i < fc1.length; i++) fc1[i] = hsl;
+		if (fc2 != null) for (int i = 0; i < fc2.length; i++) fc2[i] = hsl;
+		if (fc3 != null) for (int i = 0; i < fc3.length; i++) fc3[i] = hsl;
+		m.setSceneId(0);
 	}
 
 	/**
-	 * Entry setup prompt: while in the setup box, show steps to equip Crystal
-	 * Halberd and Salve (e). Clears the moment both are present. Once per raid.
+	 * Entry setup prompt: armed on entering the setup box, stays until Crystal
+	 * Halberd and Salve (e) are both present. Once per raid.
+	 *
+	 * Uses the same armed pattern as updateBloatPrayer. When both are active,
+	 * prayer overwrites setup each tick (prayer is called after setup in updateBloat)
+	 * and takes visual precedence — once prayers are done, setup shows alone.
 	 */
 	private void updateBloatSetup(WorldPoint wp)
 	{
-		if (bloatPrayerActive) return; // prayer comply takes precedence
-
-		boolean inBox = config.bloatSetupCheck() && bloatSetupZone.contains(wp);
-
-		if (!inBox)
-		{
-			if (bloatSetupPromptActive)
-			{
-				overlay.dismiss();
-				bloatSetupPromptActive = false;
-			}
-			if (bloatInSetupBox)
-				bloatSetupHandled = true;
-			bloatInSetupBox = false;
-			return;
-		}
-
-		bloatInSetupBox = true;
+		if (!config.bloatSetupCheck()) return;
 		if (bloatSetupHandled) return;
+
+		boolean inBox = bloatSetupZone.contains(wp);
+		if (inBox) bloatSetupArmed = true;
+		if (!bloatSetupArmed) return;
 
 		List<String> steps = bloatSetupSteps();
 		if (steps.isEmpty())
@@ -1191,7 +1196,6 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 			maidenInBox = false;
 			maidenPrayerActive = false;
 			bloatSetupPromptActive = false;
-			bloatInSetupBox = false;
 			bloatPrayerActive = false;
 			bloatPostPromptActive = false;
 		}
