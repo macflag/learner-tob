@@ -779,16 +779,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 
 	private void updateBloatTiles(NPC bloat)
 	{
-		if (!config.bloatTileMarker() || bloat == null)
-		{
-			tileOverlay.setBloat(null);
-			return;
-		}
-		WorldPoint wl = bloat.getWorldLocation();
-		if (wl == null) { tileOverlay.setBloat(null); return; }
-		NPCComposition comp = bloat.getTransformedComposition();
-		int size = comp != null ? comp.getSize() : 5;
-		tileOverlay.setBloat(new TileMarkerOverlay.Mark(wl, size));
+		tileOverlay.setBloat(config.bloatTileMarker() ? bloat : null);
 	}
 
 	/**

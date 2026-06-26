@@ -14,6 +14,8 @@ import java.util.Collections;
 import java.util.List;
 import javax.inject.Inject;
 import net.runelite.api.Client;
+import net.runelite.api.NPC;
+import net.runelite.api.NPCComposition;
 import net.runelite.api.Perspective;
 import net.runelite.api.Point;
 import net.runelite.api.coords.LocalPoint;
@@ -46,9 +48,12 @@ public class TileMarkerOverlay extends Overlay
     // Blood spawns: warm medium grey.
     private static final Color BLOOD_STROKE = new Color(165, 158, 158);
     private static final Color BLOOD_FILL   = new Color(165, 158, 158, 55);
-    // Bloat true tile: light grey.
-    private static final Color BLOAT_STROKE = new Color(200, 200, 200);
-    private static final Color BLOAT_FILL   = new Color(200, 200, 200, 40);
+    // Bloat rendered tile (where the client draws him): light grey.
+    private static final Color BLOAT_STROKE      = new Color(200, 200, 200);
+    private static final Color BLOAT_FILL        = new Color(200, 200, 200, 40);
+    // Bloat true tile (server position, one tick ahead of render): bright white.
+    private static final Color BLOAT_TRUE_STROKE = new Color(255, 255, 255);
+    private static final Color BLOAT_TRUE_FILL   = new Color(255, 255, 255, 25);
 
     private static final String LABEL = "Stay in this area";
 
@@ -72,8 +77,8 @@ public class TileMarkerOverlay extends Overlay
     private volatile List<Mark> nyloTiles  = Collections.emptyList();
     private volatile List<Mark> bloodTiles = Collections.emptyList();
 
-    // Bloat NPC true-tile mark (null = Bloat not in room).
-    private volatile Mark bloatMark;
+    // Bloat NPC reference (null = Bloat not in room). Read fresh every frame for smooth tile positions.
+    private volatile NPC bloatNpc;
 
     @Inject
     TileMarkerOverlay(Client client)
@@ -91,10 +96,10 @@ public class TileMarkerOverlay extends Overlay
         this.bloodTiles = bloods != null ? bloods : Collections.emptyList();
     }
 
-    /** Plugin pushes the Bloat NPC mark each tick (null = not in room). */
-    void setBloat(Mark mark)
+    /** Plugin pushes the Bloat NPC reference each tick (null = not in room). */
+    void setBloat(NPC npc)
     {
-        this.bloatMark = mark;
+        this.bloatNpc = npc;
     }
 
     @Override
@@ -117,10 +122,28 @@ public class TileMarkerOverlay extends Overlay
         for (Mark m : nyloTiles)
             drawNpcTile(g, m, NYLO_FILL, NYLO_STROKE);
 
-        // Bloat NPC true tile.
-        Mark bm = bloatMark;
-        if (bm != null)
-            drawNpcTile(g, bm, BLOAT_FILL, BLOAT_STROKE);
+        // Bloat: rendered tile (visual position) first, true tile (server position) on top.
+        // When Bloat is turning/walking, the white true tile snaps ahead one tick so players
+        // can read the new direction before the model animation catches up.
+        NPC bloat = bloatNpc;
+        if (bloat != null)
+        {
+            NPCComposition comp = bloat.getTransformedComposition();
+            int bloatSize = comp != null ? comp.getSize() : 5;
+
+            LocalPoint rendered = bloat.getLocalLocation();
+            if (rendered != null)
+                fillPoly(g, Perspective.getCanvasTileAreaPoly(client, rendered, bloatSize),
+                        BLOAT_FILL, BLOAT_STROKE);
+
+            LocalPoint trueSW = LocalPoint.fromWorld(client, bloat.getWorldLocation());
+            if (trueSW != null)
+            {
+                int half = (bloatSize - 1) * Perspective.LOCAL_TILE_SIZE / 2;
+                fillPoly(g, Perspective.getCanvasTileAreaPoly(client, trueSW.plus(half, half), bloatSize),
+                        BLOAT_TRUE_FILL, BLOAT_TRUE_STROKE);
+            }
+        }
 
         return null;
     }
