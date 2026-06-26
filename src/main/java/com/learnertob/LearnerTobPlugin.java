@@ -110,6 +110,9 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private static final Set<Integer> BLOOD_IDS = new HashSet<>(java.util.Arrays.asList(8367, 10821, 10829));
 	private boolean maiden75, maiden55, maiden35, maiden0;
 
+	private boolean tileRecording = false;
+	private final Set<WorldPoint> recordedTiles = new HashSet<>();
+
 	// Role-specific "stand here" boxes in the Maiden room: {minX, maxX, minY, maxY}, plane 0.
 	private static final int[] BOX_MDPS_NOSCY = {3166, 3169, 4452, 4455};
 	private static final int[] BOX_RDPS_NOSCY = {3166, 3169, 4437, 4440};
@@ -603,6 +606,9 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		if (wp == null)
 			return;
 
+		if (tileRecording)
+			recordedTiles.add(wp);
+
 		// Raid-start door — push-style, click-to-close.
 		if (config.raidEntryCheck())
 		{
@@ -989,8 +995,9 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	{
 		switch (event.getCommand().toLowerCase())
 		{
-			case "tobcheck": runCheck(); break;
-			case "tobdump":  runDump();  break;
+			case "tobcheck":  runCheck();            break;
+			case "tobdump":   runDump();             break;
+			case "tobrecord": toggleTileRecording(); break;
 			default: break;
 		}
 	}
@@ -1050,6 +1057,20 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 						? where + " " + req.quantity + "x " + req.label + " (have " + have + ")"
 						: where + " " + req.label);
 			}
+		}
+
+		// Uncharged weapon warnings — passes the gear check above but can't hit.
+		{
+			Set<Integer> worn = new HashSet<>(wornCounts.keySet());
+			worn.addAll(invCounts.keySet());
+			boolean hasMage    = worn.stream().anyMatch(Presets.MAGE_ANY::contains);
+			boolean hasCharged = worn.stream().anyMatch(Presets.MAGE_CHARGED::contains);
+			if (hasMage && !hasCharged)
+				problems.add("Charge your mage weapon before the raid");
+			boolean hasScythe        = worn.stream().anyMatch(Presets.SCYTHE_ANY::contains);
+			boolean hasChargedScythe = worn.stream().anyMatch(Presets.SCYTHE_CHARGED::contains);
+			if (hasScythe && !hasChargedScythe)
+				problems.add("Charge your scythe before the raid");
 		}
 
 		// Runes — each expected rune satisfied by pouch OR inventory (presence).
@@ -1180,6 +1201,48 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		for (String line : lines) message(line);
 		copyToClipboard(lines);
 		message("Copied to clipboard \u2705");
+	}
+
+	private void toggleTileRecording()
+	{
+		if (!tileRecording)
+		{
+			tileRecording = true;
+			recordedTiles.clear();
+			message("Tile recording started \u2014 type ::tobrecord again to stop.");
+			return;
+		}
+
+		tileRecording = false;
+
+		if (recordedTiles.isEmpty())
+		{
+			message("Tile recording stopped \u2014 no tiles recorded.");
+			return;
+		}
+
+		int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+		int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+		int plane = 0;
+		for (WorldPoint p : recordedTiles)
+		{
+			if (p.getX() < minX) minX = p.getX();
+			if (p.getX() > maxX) maxX = p.getX();
+			if (p.getY() < minY) minY = p.getY();
+			if (p.getY() > maxY) maxY = p.getY();
+			plane = p.getPlane();
+		}
+
+		String result = "Box: minX=" + minX + " maxX=" + maxX
+				+ " minY=" + minY + " maxY=" + maxY
+				+ " plane=" + plane + " | Tiles: " + recordedTiles.size();
+		message(result);
+		try
+		{
+			StringSelection sel = new StringSelection(result);
+			Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, null);
+		}
+		catch (RuntimeException ignored) { }
 	}
 
 	// ------------------------------------------------------------------

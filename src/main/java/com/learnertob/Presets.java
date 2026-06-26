@@ -27,7 +27,16 @@ public class Presets
     public static final int ARCEUUS  = 3;
 
     // ---- Mage weapon ----
-    static final int EYE_OF_AYAK = 31113, SANGUINESTI_STAFF = 22323, TRIDENT_OF_SWAMP = 12899;
+    static final int EYE_OF_AYAK = 31113, EYE_OF_AYAK_U = 31115;
+    static final int SANGUINESTI_STAFF = 22323, SANGUINESTI_STAFF_U = 22481;
+    static final int TRIDENT_OF_SWAMP = 12899, TRIDENT_OF_SWAMP_U = 12900;
+    static final int TRIDENT_OF_SWAMP_E = 22292, TRIDENT_OF_SWAMP_E_U = 22294;
+    static final int TRIDENT_OF_SWAMP_O = 33314, TRIDENT_OF_SWAMP_O_U = 33316;
+    static final int TRIDENT_OF_SWAMP_EO = 33318, TRIDENT_OF_SWAMP_EO_U = 33320;
+    static final int TRIDENT_OF_SEAS = 11905, TRIDENT_OF_SEAS_PC = 11907, TRIDENT_OF_SEAS_U = 11908;
+    static final int TRIDENT_OF_SEAS_E = 22288, TRIDENT_OF_SEAS_E_U = 22290;
+    static final int TRIDENT_OF_SEAS_O = 33323, TRIDENT_OF_SEAS_O_PC = 33322, TRIDENT_OF_SEAS_O_U = 33434;
+    static final int TRIDENT_OF_SEAS_EO = 33326, TRIDENT_OF_SEAS_EO_U = 33328;
 
     // ---- Helm ----
     static final int TORVA_FULL_HELM = 26382, SANGUINE_TORVA_HELM = 28254;
@@ -51,7 +60,8 @@ public class Presets
     static final int VOID_KNIGHT_ROBE = 8840, VOID_KNIGHT_ROBE_L = 24179, VOID_KNIGHT_ROBE_OR = 26465, VOID_KNIGHT_ROBE_L_OR = 27001;
 
     // ---- Melee cape ----
-    static final int INFERNAL_CAPE = 21295, INFERNAL_CAPE_L = 24224, INFERNAL_MAX_CAPE_L = 24133;
+    static final int INFERNAL_CAPE = 21295, INFERNAL_CAPE_L = 24224;
+    static final int INFERNAL_MAX_CAPE = 21285, INFERNAL_MAX_CAPE_L = 24133;
     static final int FIRE_CAPE = 6570, FIRE_CAPE_L = 24223, FIRE_MAX_CAPE = 13329, FIRE_MAX_CAPE_L = 24134;
 
     // ---- Neck ----
@@ -78,7 +88,9 @@ public class Presets
     static final int VOID_KNIGHT_GLOVES = 8842, VOID_KNIGHT_GLOVES_L = 24182, VOID_KNIGHT_GLOVES_OR = 26467, VOID_KNIGHT_GLOVES_L_OR = 27002;
 
     // ---- Scythe / tentacle ----
-    static final int SCYTHE_OF_VITUR = 22325, SCYTHE_UNCHARGED = 22324, HOLY_SCYTHE = 25736, SANGUINE_SCYTHE = 25739;
+    static final int SCYTHE_OF_VITUR = 22325, SCYTHE_UNCHARGED = 22324, SCYTHE_OF_VITUR_U = 22486;
+    static final int HOLY_SCYTHE = 25736, HOLY_SCYTHE_U = 25738;
+    static final int SANGUINE_SCYTHE = 25739, SANGUINE_SCYTHE_U = 25741;
     static final int ABYSSAL_TENTACLE = 12006;
 
     // ---- Specs ----
@@ -104,7 +116,7 @@ public class Presets
     static final int SARADOMIN_BREW_4 = 6685, SUPER_RESTORE_4 = 3024;
     static final int DIVINE_SUPER_COMBAT_4 = 23685, SUPER_COMBAT_4 = 12695;
     static final int ANGLERFISH = 13441, RANGING_POTION_4 = 2444;
-    static final int DIVINE_RUNE_POUCH_L = 27509, RUNE_POUCH = 12791;
+    static final int DIVINE_RUNE_POUCH = 27281, DIVINE_RUNE_POUCH_L = 27509, RUNE_POUCH = 12791;
     static final int RADAS_BLESSING_4 = 22947, RADAS_BLESSING_3 = 22945;
     static final int ANCIENT_BLESSING = 20235, HOLY_BLESSING = 20220, HONOURABLE_BLESSING = 20229, PEACEFUL_BLESSING = 20226;
 
@@ -121,8 +133,16 @@ public class Presets
     static final int ELIDINIS_WARD_OR = 27253;
     static final int VOID_MAGE_HELM = 11663, VOID_MAGE_HELM_L = 24183;
     static final int VOID_MAGE_HELM_OR = 26473, VOID_MAGE_HELM_L_OR = 27005;
-    static final int OCCULT_NECKLACE_OR = 19720;
-    static final int IMBUED_GUTHIX_MAX_CAPE = 21784;
+    static final int OCCULT_NECKLACE = 12002, OCCULT_NECKLACE_OR = 19720;
+    static final int IMBUED_GUTHIX_CAPE         = 21793, IMBUED_GUTHIX_CAPE_L         = 24249;
+    static final int IMBUED_GUTHIX_MAX_CAPE      = 21784, IMBUED_GUTHIX_MAX_CAPE_L      = 24234;
+    static final int IMBUED_SARA_CAPE            = 21791, IMBUED_SARA_CAPE_L            = 24248;
+    static final int IMBUED_SARA_MAX_CAPE        = 21776, IMBUED_SARA_MAX_CAPE_L        = 24232;
+    static final int IMBUED_ZAM_CAPE             = 21795, IMBUED_ZAM_CAPE_L             = 24250;
+    static final int IMBUED_ZAM_MAX_CAPE         = 21780, IMBUED_ZAM_MAX_CAPE_L         = 24233;
+    static final int IMBUED_GUTHIX_CAPE_DM       = 29615;
+    static final int IMBUED_SARA_CAPE_DM         = 29617;
+    static final int IMBUED_ZAM_CAPE_DM          = 29613;
     static final int SATURATED_HEART = 27641;
 
     // ------------------------------------------------------------------
@@ -161,12 +181,32 @@ public class Presets
     static final Set<Integer> VOID_MAGE_HELM_ANY = sub(
             VOID_MAGE_HELM, VOID_MAGE_HELM_L, VOID_MAGE_HELM_OR, VOID_MAGE_HELM_L_OR);
 
-    static final Set<Integer> CAPE_ANY     = sub(INFERNAL_CAPE, INFERNAL_CAPE_L, INFERNAL_MAX_CAPE_L, FIRE_CAPE, FIRE_CAPE_L, FIRE_MAX_CAPE, FIRE_MAX_CAPE_L);
+    static final Set<Integer> CAPE_ANY     = sub(INFERNAL_CAPE, INFERNAL_CAPE_L, INFERNAL_MAX_CAPE, INFERNAL_MAX_CAPE_L, FIRE_CAPE, FIRE_CAPE_L, FIRE_MAX_CAPE, FIRE_MAX_CAPE_L);
     static final Set<Integer> NECK_ANY     = sub(AMULET_OF_RANCOUR, AMULET_OF_RANCOUR_S, AMULET_OF_TORTURE);
     static final Set<Integer> BOOTS_ANY    = sub(AVERNIC_TREADS, AVERNIC_TREADS_MAX, AVERNIC_TREADS_PR, AVERNIC_TREADS_PR_PE, AVERNIC_TREADS_PR_ET, PRIMORDIAL_BOOTS, DRAGON_BOOTS, DRAGON_BOOTS_CR, DRAGON_BOOTS_G);
     static final Set<Integer> RING_ANY     = sub(ULTOR_RING, BERSERKER_RING_I);
-    static final Set<Integer> MAGE_ANY     = sub(EYE_OF_AYAK, SANGUINESTI_STAFF, TRIDENT_OF_SWAMP);
-    static final Set<Integer> SCYTHE_ANY   = sub(SCYTHE_OF_VITUR, SCYTHE_UNCHARGED, HOLY_SCYTHE, SANGUINE_SCYTHE);
+    static final Set<Integer> MAGE_CHARGED = sub(
+            EYE_OF_AYAK, SANGUINESTI_STAFF,
+            TRIDENT_OF_SWAMP, TRIDENT_OF_SWAMP_E, TRIDENT_OF_SWAMP_O, TRIDENT_OF_SWAMP_EO,
+            TRIDENT_OF_SEAS, TRIDENT_OF_SEAS_PC, TRIDENT_OF_SEAS_E,
+            TRIDENT_OF_SEAS_O, TRIDENT_OF_SEAS_O_PC, TRIDENT_OF_SEAS_EO);
+    static final Set<Integer> MAGE_UNCHARGED = sub(
+            EYE_OF_AYAK_U, SANGUINESTI_STAFF_U,
+            TRIDENT_OF_SWAMP_U, TRIDENT_OF_SWAMP_E_U, TRIDENT_OF_SWAMP_O_U, TRIDENT_OF_SWAMP_EO_U,
+            TRIDENT_OF_SEAS_U, TRIDENT_OF_SEAS_E_U, TRIDENT_OF_SEAS_O_U, TRIDENT_OF_SEAS_EO_U);
+    static final Set<Integer> MAGE_ANY     = sub(
+            EYE_OF_AYAK, SANGUINESTI_STAFF,
+            TRIDENT_OF_SWAMP, TRIDENT_OF_SWAMP_E, TRIDENT_OF_SWAMP_O, TRIDENT_OF_SWAMP_EO,
+            TRIDENT_OF_SEAS, TRIDENT_OF_SEAS_PC, TRIDENT_OF_SEAS_E,
+            TRIDENT_OF_SEAS_O, TRIDENT_OF_SEAS_O_PC, TRIDENT_OF_SEAS_EO,
+            EYE_OF_AYAK_U, SANGUINESTI_STAFF_U,
+            TRIDENT_OF_SWAMP_U, TRIDENT_OF_SWAMP_E_U, TRIDENT_OF_SWAMP_O_U, TRIDENT_OF_SWAMP_EO_U,
+            TRIDENT_OF_SEAS_U, TRIDENT_OF_SEAS_E_U, TRIDENT_OF_SEAS_O_U, TRIDENT_OF_SEAS_EO_U);
+    static final Set<Integer> SCYTHE_CHARGED = sub(SCYTHE_OF_VITUR, HOLY_SCYTHE, SANGUINE_SCYTHE);
+    static final Set<Integer> SCYTHE_U_IDS  = sub(SCYTHE_UNCHARGED, SCYTHE_OF_VITUR_U, HOLY_SCYTHE_U, SANGUINE_SCYTHE_U);
+    static final Set<Integer> SCYTHE_ANY    = sub(
+            SCYTHE_OF_VITUR, HOLY_SCYTHE, SANGUINE_SCYTHE,
+            SCYTHE_UNCHARGED, SCYTHE_OF_VITUR_U, HOLY_SCYTHE_U, SANGUINE_SCYTHE_U);
     static final Set<Integer> DEFENDER_ANY = sub(
             AVERNIC_DEFENDER, AVERNIC_DEFENDER_L,
             GHOMMALS_AVERNIC_5, GHOMMALS_AVERNIC_5L,
@@ -183,10 +223,17 @@ public class Presets
             ASSEMBLER_MAX_CAPE, ASSEMBLER_MAX_CAPE_L,
             MASORI_ASSEMBLER, MASORI_ASSEMBLER_L,
             MASORI_ASSEMBLER_MAX_CAPE, MASORI_ASSEMBLER_MAX_CAPE_L);
+    static final Set<Integer> MAGE_CAPE_ANY = sub(
+            IMBUED_GUTHIX_MAX_CAPE, IMBUED_GUTHIX_MAX_CAPE_L,
+            IMBUED_GUTHIX_CAPE, IMBUED_GUTHIX_CAPE_L, IMBUED_GUTHIX_CAPE_DM,
+            IMBUED_SARA_MAX_CAPE, IMBUED_SARA_MAX_CAPE_L,
+            IMBUED_SARA_CAPE, IMBUED_SARA_CAPE_L, IMBUED_SARA_CAPE_DM,
+            IMBUED_ZAM_MAX_CAPE, IMBUED_ZAM_MAX_CAPE_L,
+            IMBUED_ZAM_CAPE, IMBUED_ZAM_CAPE_L, IMBUED_ZAM_CAPE_DM);
     static final Set<Integer> BLOWPIPE_ANY  = sub(BLAZING_BLOWPIPE, BLOWPIPE);
     static final Set<Integer> ANGUISH_ANY   = sub(NECKLACE_OF_ANGUISH_OR, NECKLACE_OF_ANGUISH);
     static final Set<Integer> BGS_ANY      = sub(BANDOS_GODSWORD_OR, BANDOS_GODSWORD);
-    static final Set<Integer> POUCH_ANY    = sub(DIVINE_RUNE_POUCH_L, RUNE_POUCH);
+    static final Set<Integer> POUCH_ANY    = sub(DIVINE_RUNE_POUCH, DIVINE_RUNE_POUCH_L, RUNE_POUCH);
 
     // Helm priority for the "better item in bank" warning (best first).
     // Torva (strength) > Oathplate (accuracy) > Faceguard.
@@ -263,7 +310,7 @@ public class Presets
         s.add(BLACK_CHINCHOMPA); s.add(LAVA_RUNE); s.add(ASTRAL_RUNE);
         // Freeze mage gear
         s.addAll(FREEZE_STAFF_ANY); s.add(ELIDINIS_WARD_OR);
-        s.add(OCCULT_NECKLACE_OR); s.add(IMBUED_GUTHIX_MAX_CAPE); s.add(SATURATED_HEART);
+        s.add(OCCULT_NECKLACE_OR); s.add(OCCULT_NECKLACE); s.addAll(MAGE_CAPE_ANY); s.add(SATURATED_HEART);
         return s;
     }
 
@@ -558,8 +605,8 @@ public class Presets
 
         // Inventory — mage switch
         r.add(new SlotReq("Void Mage Helm", VOID_MAGE_HELM_ANY, 1, false));
-        r.add(new SlotReq("Occult (or)", sub(OCCULT_NECKLACE_OR), 1, false));
-        r.add(new SlotReq("Imbued Guthix Cape", sub(IMBUED_GUTHIX_MAX_CAPE), 1, false));
+        r.add(new SlotReq("Occult", sub(OCCULT_NECKLACE_OR, OCCULT_NECKLACE), 1, false));
+        r.add(new SlotReq("Imbued Mage Cape", MAGE_CAPE_ANY, 1, false));
         r.add(new SlotReq("Saturated Heart", sub(SATURATED_HEART), 1, false));
         r.add(new SlotReq("Eye of Ayak", MAGE_ANY, 1, false));
 
