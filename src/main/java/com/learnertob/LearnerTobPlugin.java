@@ -108,7 +108,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private static final Set<Integer> NYLO_IDS = new HashSet<>(java.util.Arrays.asList(10820, 8366));
 	// Blood spawns (all roles): Entry + Normal.
 	private static final Set<Integer> BLOOD_IDS = new HashSet<>(java.util.Arrays.asList(8367, 10821, 10829));
-	private boolean maiden75, maiden55, maiden35;
+	private boolean maiden75, maiden55, maiden35, maiden0;
 
 	// Role-specific "stand here" boxes in the Maiden room: {minX, maxX, minY, maxY}, plane 0.
 	private static final int[] BOX_MDPS_NOSCY = {3166, 3169, 4452, 4455};
@@ -596,7 +596,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 			maidenPrayerHandled = false;
 			maidenInPrayerBox = false;
 			maidenPrayerArmed = false;
-			maiden75 = maiden55 = maiden35 = false;
+			maiden75 = maiden55 = maiden35 = maiden0 = false;
 		}
 
 		WorldPoint wp = playerWorldPoint(local);
@@ -747,18 +747,21 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		if (!maiden75 && pct <= 75) { maiden75 = true; fireMaidenHp(role, 75); }
 		if (!maiden55 && pct <= 55) { maiden55 = true; fireMaidenHp(role, 55); }
 		if (!maiden35 && pct <= 35) { maiden35 = true; fireMaidenHp(role, 35); }
+		if (!maiden0  && pct <= 0)  { maiden0  = true; fireMaidenHp(role,  0); }
 	}
 
 	private void fireMaidenHp(Role role, int threshold)
 	{
 		overlay.showResult("Maiden \u2014 " + threshold + "%",
 				maidenHpText(role, threshold),
-				GearCheckOverlay.DismissMode.TIMED, 3, true);
+				GearCheckOverlay.DismissMode.TIMED, threshold == 0 ? 2 : 3, true);
 	}
 
 	/** Role-specific Maiden call-out text for a threshold. */
 	private List<String> maidenHpText(Role role, int t)
 	{
+		if (t == 0)
+			return java.util.Collections.singletonList("Drink Divine Super Combat");
 		switch (role)
 		{
 			case NORTH_FREEZE:

@@ -82,6 +82,7 @@ Detail on each phase lives on the **[Roadmap wiki page](../../wiki/Roadmap)**.
 - **Anguish:** Necklace of Anguish (base) accepted alongside Anguish (or) in all setups that use it
 - **Blessing (ammo slot):** Rada's Blessing 3, Ancient, Holy, Honourable, and Peaceful Blessings all accepted alongside Rada's Blessing 4. Rada's 4 is flagged as an upgrade over the others
 - **Freeze staff:** full weapon ladder accepted for NFRZ/SFRZ — Volatile Nightmare Staff (DM) → Kodai Wand → Ice Ancient Sceptre → Blood Ancient Sceptre → Ancient Sceptre (all with locked variants). Upgrade hints fire for freeze roles when a better staff is in the bank
+- **Maiden 0% call-out:** flashing 2-second popup "Drink Divine Super Combat" fires for all roles when Maiden reaches 0% HP
 
 ### 1.1.1 — Maiden
 - Maiden setup prompt on entry: reminds you to drop Salve and equip Elder Maul or Dragon Warhammer (comply-style, once per raid)
