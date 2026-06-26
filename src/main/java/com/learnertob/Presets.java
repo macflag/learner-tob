@@ -59,14 +59,19 @@ public class Presets
 
     // ---- Boots ----
     static final int AVERNIC_TREADS = 31088, AVERNIC_TREADS_MAX = 31097, PRIMORDIAL_BOOTS = 13239;
+    static final int AVERNIC_TREADS_PR = 31091, AVERNIC_TREADS_PR_PE = 31094, AVERNIC_TREADS_PR_ET = 31095;
+    static final int DRAGON_BOOTS = 11840, DRAGON_BOOTS_CR = 28055, DRAGON_BOOTS_G = 22234;
 
     // ---- Ring ----
     static final int ULTOR_RING = 28307, BERSERKER_RING_I = 11773;
 
     // ---- Shield ----
-    static final int BOOK_OF_DEAD = 25818, AVERNIC_DEFENDER = 22477;
-    static final int GHOMMALS_AVERNIC_5 = 27079, GHOMMALS_AVERNIC_5L = 27080;
-    static final int GHOMMALS_AVERNIC_6 = 27551, GHOMMALS_AVERNIC_6L = 27553, DRAGON_DEFENDER = 8850;
+    static final int BOOK_OF_DEAD = 25818;
+    static final int AVERNIC_DEFENDER = 22322, AVERNIC_DEFENDER_L = 24186;
+    static final int GHOMMALS_AVERNIC_5 = 27550, GHOMMALS_AVERNIC_5L = 27551;
+    static final int GHOMMALS_AVERNIC_6 = 27552, GHOMMALS_AVERNIC_6L = 27553;
+    static final int DRAGON_DEFENDER = 12954, DRAGON_DEFENDER_L = 24143;
+    static final int DRAGON_DEFENDER_T = 19722, DRAGON_DEFENDER_T_L = 27008;
 
     // ---- Gloves ----
     static final int FEROCIOUS_GLOVES = 22981;
@@ -91,7 +96,7 @@ public class Presets
 
     // ---- Fixed / shared inventory ----
     static final int BLAZING_BLOWPIPE = 28688, BLOWPIPE = 12926;
-    static final int NECKLACE_OF_ANGUISH_OR = 22249;
+    static final int NECKLACE_OF_ANGUISH = 19547, NECKLACE_OF_ANGUISH_OR = 22249;
     static final int VOID_RANGER_HELM = 11664, VOID_RANGER_HELM_L = 24184;
     static final int VOID_RANGER_HELM_OR = 26475, VOID_RANGER_HELM_L_OR = 27006;
     static final int SALVE_AMULET_E = 10588, CRYSTAL_HALBERD = 23987;
@@ -99,14 +104,20 @@ public class Presets
     static final int SARADOMIN_BREW_4 = 6685, SUPER_RESTORE_4 = 3024;
     static final int DIVINE_SUPER_COMBAT_4 = 23685, SUPER_COMBAT_4 = 12695;
     static final int ANGLERFISH = 13441, RANGING_POTION_4 = 2444;
-    static final int DIVINE_RUNE_POUCH_L = 27509, RUNE_POUCH = 12791, RADAS_BLESSING_4 = 22947;
+    static final int DIVINE_RUNE_POUCH_L = 27509, RUNE_POUCH = 12791;
+    static final int RADAS_BLESSING_4 = 22947, RADAS_BLESSING_3 = 22945;
+    static final int ANCIENT_BLESSING = 20235, HOLY_BLESSING = 20220, HONOURABLE_BLESSING = 20229, PEACEFUL_BLESSING = 20226;
 
     // ---- RDPS-specific ----
     static final int BLACK_CHINCHOMPA = 11959;
     static final int LAVA_RUNE = 4699, ASTRAL_RUNE = 9075;
 
     // ---- Freeze-specific (mage gear) ----
-    static final int BLOOD_ANCIENT_SCEPTRE = 28260;
+    static final int ANCIENT_SCEPTRE = 27624, ANCIENT_SCEPTRE_L = 27626;
+    static final int BLOOD_ANCIENT_SCEPTRE = 28260, BLOOD_ANCIENT_SCEPTRE_L = 28473;
+    static final int ICE_ANCIENT_SCEPTRE = 28262, ICE_ANCIENT_SCEPTRE_L = 28474;
+    static final int KODAI_WAND = 21006;
+    static final int VOLATILE_NIGHTMARE_STAFF_DM = 29609;
     static final int ELIDINIS_WARD_OR = 27253;
     static final int VOID_MAGE_HELM = 11663, VOID_MAGE_HELM_L = 24183;
     static final int VOID_MAGE_HELM_OR = 26473, VOID_MAGE_HELM_L_OR = 27005;
@@ -152,11 +163,16 @@ public class Presets
 
     static final Set<Integer> CAPE_ANY     = sub(INFERNAL_CAPE, INFERNAL_CAPE_L, INFERNAL_MAX_CAPE_L, FIRE_CAPE, FIRE_CAPE_L, FIRE_MAX_CAPE, FIRE_MAX_CAPE_L);
     static final Set<Integer> NECK_ANY     = sub(AMULET_OF_RANCOUR, AMULET_OF_RANCOUR_S, AMULET_OF_TORTURE);
-    static final Set<Integer> BOOTS_ANY    = sub(AVERNIC_TREADS, AVERNIC_TREADS_MAX, PRIMORDIAL_BOOTS);
+    static final Set<Integer> BOOTS_ANY    = sub(AVERNIC_TREADS, AVERNIC_TREADS_MAX, AVERNIC_TREADS_PR, AVERNIC_TREADS_PR_PE, AVERNIC_TREADS_PR_ET, PRIMORDIAL_BOOTS, DRAGON_BOOTS, DRAGON_BOOTS_CR, DRAGON_BOOTS_G);
     static final Set<Integer> RING_ANY     = sub(ULTOR_RING, BERSERKER_RING_I);
     static final Set<Integer> MAGE_ANY     = sub(EYE_OF_AYAK, SANGUINESTI_STAFF, TRIDENT_OF_SWAMP);
     static final Set<Integer> SCYTHE_ANY   = sub(SCYTHE_OF_VITUR, SCYTHE_UNCHARGED, HOLY_SCYTHE, SANGUINE_SCYTHE);
-    static final Set<Integer> DEFENDER_ANY = sub(AVERNIC_DEFENDER, GHOMMALS_AVERNIC_5, GHOMMALS_AVERNIC_5L, GHOMMALS_AVERNIC_6, GHOMMALS_AVERNIC_6L, DRAGON_DEFENDER);
+    static final Set<Integer> DEFENDER_ANY = sub(
+            AVERNIC_DEFENDER, AVERNIC_DEFENDER_L,
+            GHOMMALS_AVERNIC_5, GHOMMALS_AVERNIC_5L,
+            GHOMMALS_AVERNIC_6, GHOMMALS_AVERNIC_6L,
+            DRAGON_DEFENDER, DRAGON_DEFENDER_L,
+            DRAGON_DEFENDER_T, DRAGON_DEFENDER_T_L);
     static final Set<Integer> DPS_SPEC     = sub(DRAGON_CLAWS, BURNING_CLAWS);
     static final Set<Integer> DEF_SPEC     = sub(ELDER_MAUL, DRAGON_WARHAMMER);
     static final Set<Integer> QUIVER_ANY   = sub(
@@ -167,7 +183,8 @@ public class Presets
             ASSEMBLER_MAX_CAPE, ASSEMBLER_MAX_CAPE_L,
             MASORI_ASSEMBLER, MASORI_ASSEMBLER_L,
             MASORI_ASSEMBLER_MAX_CAPE, MASORI_ASSEMBLER_MAX_CAPE_L);
-    static final Set<Integer> BLOWPIPE_ANY = sub(BLAZING_BLOWPIPE, BLOWPIPE);
+    static final Set<Integer> BLOWPIPE_ANY  = sub(BLAZING_BLOWPIPE, BLOWPIPE);
+    static final Set<Integer> ANGUISH_ANY   = sub(NECKLACE_OF_ANGUISH_OR, NECKLACE_OF_ANGUISH);
     static final Set<Integer> BGS_ANY      = sub(BANDOS_GODSWORD_OR, BANDOS_GODSWORD);
     static final Set<Integer> POUCH_ANY    = sub(DIVINE_RUNE_POUCH_L, RUNE_POUCH);
 
@@ -191,6 +208,36 @@ public class Presets
     static final List<Set<Integer>> DEF_SPEC_PRIORITY = priorityList(
             sub(ELDER_MAUL),
             sub(DRAGON_WARHAMMER));
+    // Defender: any Avernic variant > any Dragon Defender variant.
+    static final List<Set<Integer>> DEFENDER_PRIORITY = priorityList(
+            sub(GHOMMALS_AVERNIC_6, GHOMMALS_AVERNIC_6L, GHOMMALS_AVERNIC_5, GHOMMALS_AVERNIC_5L, AVERNIC_DEFENDER, AVERNIC_DEFENDER_L),
+            sub(DRAGON_DEFENDER, DRAGON_DEFENDER_L, DRAGON_DEFENDER_T, DRAGON_DEFENDER_T_L));
+    // Boots: max treads > pr variants > base treads > primordial > dragon boots.
+    static final List<Set<Integer>> BOOTS_PRIORITY = priorityList(
+            sub(AVERNIC_TREADS_MAX),
+            sub(AVERNIC_TREADS_PR, AVERNIC_TREADS_PR_PE, AVERNIC_TREADS_PR_ET),
+            sub(AVERNIC_TREADS),
+            sub(PRIMORDIAL_BOOTS),
+            sub(DRAGON_BOOTS, DRAGON_BOOTS_CR, DRAGON_BOOTS_G));
+    // Freeze staff: volatile DM > kodai > ice sceptre > blood sceptre > ancient sceptre.
+    static final Set<Integer> FREEZE_STAFF_ANY = sub(
+            VOLATILE_NIGHTMARE_STAFF_DM, KODAI_WAND,
+            ICE_ANCIENT_SCEPTRE, ICE_ANCIENT_SCEPTRE_L,
+            BLOOD_ANCIENT_SCEPTRE, BLOOD_ANCIENT_SCEPTRE_L,
+            ANCIENT_SCEPTRE, ANCIENT_SCEPTRE_L);
+    static final List<Set<Integer>> FREEZE_STAFF_PRIORITY = priorityList(
+            sub(VOLATILE_NIGHTMARE_STAFF_DM),
+            sub(KODAI_WAND),
+            sub(ICE_ANCIENT_SCEPTRE, ICE_ANCIENT_SCEPTRE_L),
+            sub(BLOOD_ANCIENT_SCEPTRE, BLOOD_ANCIENT_SCEPTRE_L),
+            sub(ANCIENT_SCEPTRE, ANCIENT_SCEPTRE_L));
+    // Blessing: Rada's 4 > everything else.
+    static final Set<Integer> BLESSING_ANY = sub(
+            RADAS_BLESSING_4, RADAS_BLESSING_3,
+            ANCIENT_BLESSING, HOLY_BLESSING, HONOURABLE_BLESSING, PEACEFUL_BLESSING);
+    static final List<Set<Integer>> BLESSING_PRIORITY = priorityList(
+            sub(RADAS_BLESSING_4),
+            sub(RADAS_BLESSING_3, ANCIENT_BLESSING, HOLY_BLESSING, HONOURABLE_BLESSING, PEACEFUL_BLESSING));
 
     static final Set<Integer> ALL_RELEVANT_IDS = buildAllRelevant();
 
@@ -207,15 +254,15 @@ public class Presets
         s.add(BOOK_OF_DEAD); s.add(FEROCIOUS_GLOVES);
         s.addAll(VOID_GLOVES_ANY); s.addAll(VOID_RANGER_HELM_ANY); s.addAll(VOID_MAGE_HELM_ANY);
         s.addAll(VOID_TOP_ANY); s.addAll(VOID_ROBE_ANY);
-        s.add(ABYSSAL_TENTACLE); s.add(NECKLACE_OF_ANGUISH_OR);
+        s.add(ABYSSAL_TENTACLE); s.addAll(ANGUISH_ANY);
         s.add(SALVE_AMULET_E); s.add(CRYSTAL_HALBERD); s.add(SULPHUR_BLADES);
         s.add(SARADOMIN_BREW_4); s.add(SUPER_RESTORE_4); s.add(DIVINE_SUPER_COMBAT_4); s.add(SUPER_COMBAT_4);
-        s.add(ANGLERFISH); s.add(RANGING_POTION_4); s.add(RADAS_BLESSING_4);
+        s.add(ANGLERFISH); s.add(RANGING_POTION_4); s.addAll(BLESSING_ANY);
 
         // RDPS
         s.add(BLACK_CHINCHOMPA); s.add(LAVA_RUNE); s.add(ASTRAL_RUNE);
         // Freeze mage gear
-        s.add(BLOOD_ANCIENT_SCEPTRE); s.add(ELIDINIS_WARD_OR);
+        s.addAll(FREEZE_STAFF_ANY); s.add(ELIDINIS_WARD_OR);
         s.add(OCCULT_NECKLACE_OR); s.add(IMBUED_GUTHIX_MAX_CAPE); s.add(SATURATED_HEART);
         return s;
     }
@@ -298,7 +345,7 @@ public class Presets
             r.add(new SlotReq("Gloves", sub(FEROCIOUS_GLOVES), 1, true));
             r.add(new SlotReq("Boots", BOOTS_ANY, 1, true));
             r.add(new SlotReq("Ring", RING_ANY, 1, true));
-            r.add(new SlotReq("Rada's Blessing", sub(RADAS_BLESSING_4), 1, true));
+            r.add(new SlotReq("Blessing", BLESSING_ANY, 1, true));
             r.add(new SlotReq("Scythe", SCYTHE_ANY, 1, false));
             r.add(new SlotReq("Blowpipe", BLOWPIPE_ANY, 1, false));
             r.add(new SlotReq("Void Top", VOID_TOP_ANY, 1, false));
@@ -306,7 +353,7 @@ public class Presets
             r.add(new SlotReq("Void Ranger Helm", VOID_RANGER_HELM_ANY, 1, false));
             r.add(new SlotReq("Void Gloves", VOID_GLOVES_ANY, 1, false));
             r.add(new SlotReq("Range Cape", QUIVER_ANY, 1, false));
-            r.add(new SlotReq("Anguish (or)", sub(NECKLACE_OF_ANGUISH_OR), 1, false));
+            r.add(new SlotReq("Anguish", ANGUISH_ANY, 1, false));
             r.add(new SlotReq("DPS Spec", DPS_SPEC, 1, false));
             r.add(new SlotReq("Defense Spec", DEF_SPEC, 1, false));
             r.add(new SlotReq("Salve (e)", sub(SALVE_AMULET_E), 1, false));
@@ -333,12 +380,12 @@ public class Presets
             r.add(new SlotReq("Void Gloves", VOID_GLOVES_ANY, 1, true));
             r.add(new SlotReq("Boots", BOOTS_ANY, 1, true));
             r.add(new SlotReq("Ring", RING_ANY, 1, true));
-            r.add(new SlotReq("Rada's Blessing", sub(RADAS_BLESSING_4), 1, true));
+            r.add(new SlotReq("Blessing", BLESSING_ANY, 1, true));
             r.add(new SlotReq("Mage Weapon", MAGE_ANY, 1, false));
             r.add(new SlotReq("Blowpipe", BLOWPIPE_ANY, 1, false));
             r.add(new SlotReq("Void Ranger Helm", VOID_RANGER_HELM_ANY, 1, false));
             r.add(new SlotReq("Range Cape", QUIVER_ANY, 1, false));
-            r.add(new SlotReq("Anguish (or)", sub(NECKLACE_OF_ANGUISH_OR), 1, false));
+            r.add(new SlotReq("Anguish", ANGUISH_ANY, 1, false));
             r.add(new SlotReq("DPS Spec", DPS_SPEC, 1, false));
             r.add(new SlotReq("Defense Spec", DEF_SPEC, 1, false));
             r.add(new SlotReq("Salve (e)", sub(SALVE_AMULET_E), 1, false));
@@ -376,7 +423,7 @@ public class Presets
         r.add(new SlotReq("Gloves", sub(FEROCIOUS_GLOVES), 1, true));
         r.add(new SlotReq("Boots", BOOTS_ANY, 1, true));
         r.add(new SlotReq("Ring", RING_ANY, 1, true));
-        r.add(new SlotReq("Rada's Blessing", sub(RADAS_BLESSING_4), 1, true));
+        r.add(new SlotReq("Blessing", BLESSING_ANY, 1, true));
 
         // Inventory — void ranged switch
         r.add(new SlotReq("Void Ranger Helm", VOID_RANGER_HELM_ANY, 1, false));
@@ -384,7 +431,7 @@ public class Presets
         r.add(new SlotReq("Void Robe", VOID_ROBE_ANY, 1, false));
         r.add(new SlotReq("Void Gloves", VOID_GLOVES_ANY, 1, false));
         r.add(new SlotReq("Range Cape", QUIVER_ANY, 1, false));
-        r.add(new SlotReq("Anguish (or)", sub(NECKLACE_OF_ANGUISH_OR), 1, false));
+        r.add(new SlotReq("Anguish", ANGUISH_ANY, 1, false));
         r.add(new SlotReq("Blowpipe", BLOWPIPE_ANY, 1, false));
 
         // Inventory — specs + utility
@@ -425,7 +472,7 @@ public class Presets
             r.add(new SlotReq("Gloves", sub(FEROCIOUS_GLOVES), 1, true));
             r.add(new SlotReq("Boots", BOOTS_ANY, 1, true));
             r.add(new SlotReq("Ring", RING_ANY, 1, true));
-            r.add(new SlotReq("Rada's Blessing", sub(RADAS_BLESSING_4), 1, true));
+            r.add(new SlotReq("Blessing", BLESSING_ANY, 1, true));
             r.add(new SlotReq("Scythe", SCYTHE_ANY, 1, false));
             r.add(new SlotReq("Blowpipe", BLOWPIPE_ANY, 1, false));
             // Chins worn (thrown weapon slot) for the scythe setup. Keeping them
@@ -437,7 +484,7 @@ public class Presets
             r.add(new SlotReq("Void Gloves", VOID_GLOVES_ANY, 1, false));
             r.add(new SlotReq("Mage Weapon", MAGE_ANY, 1, false));
             r.add(new SlotReq("Range Cape", QUIVER_ANY, 1, false));
-            r.add(new SlotReq("Anguish (or)", sub(NECKLACE_OF_ANGUISH_OR), 1, false));
+            r.add(new SlotReq("Anguish", ANGUISH_ANY, 1, false));
             r.add(new SlotReq("DPS Spec", DPS_SPEC, 1, false));
             r.add(new SlotReq("Defense Spec", DEF_SPEC, 1, false));
             r.add(new SlotReq("Salve (e)", sub(SALVE_AMULET_E), 1, false));
@@ -456,7 +503,7 @@ public class Presets
         {
             r.add(new SlotReq("Void Helm", HELM_VOID, 1, true));
             r.add(new SlotReq("Range Cape", QUIVER_ANY, 1, true));
-            r.add(new SlotReq("Anguish (or)", sub(NECKLACE_OF_ANGUISH_OR), 1, true));
+            r.add(new SlotReq("Anguish", ANGUISH_ANY, 1, true));
             r.add(new SlotReq("Abyssal Tentacle", sub(ABYSSAL_TENTACLE), 1, true));
             r.add(new SlotReq("Void Top", BODY_VOID, 1, true));
             r.add(new SlotReq("Defender", DEFENDER_ANY, 1, true));
@@ -464,7 +511,7 @@ public class Presets
             r.add(new SlotReq("Void Gloves", VOID_GLOVES_ANY, 1, true));
             r.add(new SlotReq("Boots", BOOTS_ANY, 1, true));
             r.add(new SlotReq("Ring", RING_ANY, 1, true));
-            r.add(new SlotReq("Rada's Blessing", sub(RADAS_BLESSING_4), 1, true));
+            r.add(new SlotReq("Blessing", BLESSING_ANY, 1, true));
             r.add(new SlotReq("Blowpipe", BLOWPIPE_ANY, 1, false));
             r.add(new SlotReq("Void Ranger Helm", VOID_RANGER_HELM_ANY, 1, false));
             r.add(new SlotReq("Chinchompas", sub(BLACK_CHINCHOMPA), 20, false));
@@ -499,15 +546,15 @@ public class Presets
         // Worn (identical for both freeze variants)
         r.add(new SlotReq("Void Ranger Helm", VOID_RANGER_HELM_ANY, 1, true));
         r.add(new SlotReq("Range Cape", QUIVER_ANY, 1, true));
-        r.add(new SlotReq("Anguish (or)", sub(NECKLACE_OF_ANGUISH_OR), 1, true));
-        r.add(new SlotReq("Blood Ancient Sceptre", sub(BLOOD_ANCIENT_SCEPTRE), 1, true));
+        r.add(new SlotReq("Anguish", ANGUISH_ANY, 1, true));
+        r.add(new SlotReq("Sceptre", FREEZE_STAFF_ANY, 1, true));
         r.add(new SlotReq("Void Top", BODY_VOID, 1, true));
         r.add(new SlotReq("Elidinis' Ward (or)", sub(ELIDINIS_WARD_OR), 1, true));
         r.add(new SlotReq("Void Robe", LEGS_VOID, 1, true));
         r.add(new SlotReq("Void Gloves", VOID_GLOVES_ANY, 1, true));
         r.add(new SlotReq("Boots", BOOTS_ANY, 1, true));
         r.add(new SlotReq("Ring", RING_ANY, 1, true));
-        r.add(new SlotReq("Rada's Blessing", sub(RADAS_BLESSING_4), 1, true));
+        r.add(new SlotReq("Blessing", BLESSING_ANY, 1, true));
 
         // Inventory — mage switch
         r.add(new SlotReq("Void Mage Helm", VOID_MAGE_HELM_ANY, 1, false));

@@ -98,6 +98,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private NavigationButton navButton;
 	private boolean lastScytheSetup = true;
 	private boolean lastOathWhip = false;
+	private Item[] bankSnapshot = new Item[0];
 
 	// Maiden phases by NPC id (she transforms at 70/50/30%). Normal + Story mode.
 	private static final Set<Integer> MAIDEN_IDS = new HashSet<>(java.util.Arrays.asList(
@@ -249,10 +250,17 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 
 	private void addContainer(Set<Integer> ids, InventoryID which)
 	{
-		ItemContainer c = client.getItemContainer(which);
-		if (c == null) return;
+		Item[] items;
+		if (which == InventoryID.BANK)
+			items = bankSnapshot;
+		else
+		{
+			ItemContainer c = client.getItemContainer(which);
+			if (c == null) return;
+			items = c.getItems();
+		}
 		Set<Integer> hidden = hiddenIds();
-		for (Item i : c.getItems())
+		for (Item i : items)
 			if (i.getId() > 0 && !hidden.contains(i.getId())) ids.add(i.getId());
 	}
 
@@ -445,6 +453,8 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{
 		int id = event.getContainerId();
+		if (id == InventoryID.BANK.getId())
+			bankSnapshot = event.getItemContainer().getItems().clone();
 		if (id == InventoryID.BANK.getId()
 				|| id == InventoryID.EQUIPMENT.getId()
 				|| id == InventoryID.INVENTORY.getId())
@@ -1077,8 +1087,14 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 			addPriorityWarning(problems, "body",  Presets.BODY_PRIORITY, wornInv, bankOnly);
 			addPriorityWarning(problems, "legs",  Presets.LEGS_PRIORITY, wornInv, bankOnly);
 		}
-		addPriorityWarning(problems, "DPS spec",     Presets.DPS_SPEC_PRIORITY, wornInv, bankOnly);
-		addPriorityWarning(problems, "defence spec", Presets.DEF_SPEC_PRIORITY, wornInv, bankOnly);
+		addPriorityWarning(problems, "DPS spec",     Presets.DPS_SPEC_PRIORITY,  wornInv, bankOnly);
+		addPriorityWarning(problems, "defence spec", Presets.DEF_SPEC_PRIORITY,  wornInv, bankOnly);
+		addPriorityWarning(problems, "boots",        Presets.BOOTS_PRIORITY,     wornInv, bankOnly);
+		addPriorityWarning(problems, "blessing",     Presets.BLESSING_PRIORITY,  wornInv, bankOnly);
+		if (!scythe)
+			addPriorityWarning(problems, "defender", Presets.DEFENDER_PRIORITY, wornInv, bankOnly);
+		if (role == Role.NORTH_FREEZE || role == Role.SOUTH_FREEZE)
+			addPriorityWarning(problems, "freeze staff", Presets.FREEZE_STAFF_PRIORITY, wornInv, bankOnly);
 
 		return problems;
 	}
