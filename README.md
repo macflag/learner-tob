@@ -16,7 +16,7 @@ The plugin is **bank-driven** — there are no gear dropdowns to configure. Open
 - **Sidebar loadout visualizer** — your expected loadout laid out like the in-game screen (inventory grid, equipment cross, spellbook, rune pouch). Hover any cell to identify it.
 - **Gear check** — validates what you are wearing and carrying against your role's loadout. Run it manually (button or `::tobcheck`), or let it run automatically at the raid-start door.
 - **Pre-raid checklist** — spellbook, runes, auto-retaliate, pre-pot boosts, and HP overheal, each individually toggleable.
-- **Maiden in-room guidance** — setup prompt on entry (drop Salve, equip your spec weapon), prayer prompt (role and setup aware), HP call-outs at 75/55/35%, and floor tile markers for standing positions, Nylocas Matomenos, and blood spawns.
+- **In-room guidance (Maiden & Bloat)** — room-specific setup prompts, prayer reminders, HP call-outs (Maiden), floor tile markers, Bloat true-tile (5×5), floor tile recolor, and other-player hiding. All features are individually toggleable per room.
 - **Dark-cockpit design** — no green. **Yellow** = in bank, **red** = missing/wrong, **neutral** = ready. Your eye is only drawn to what still needs action.
 - **Smart popups** — click-inside-to-close (the click is swallowed so you don't walk), timed auto-dismiss, comply-style (stays until you act), and optional flashing for urgent alerts.
 
@@ -50,10 +50,11 @@ Full loadouts, rune lists, and accepted substitutions are on the **[Loadouts wik
 
 ## Settings
 
-Grouped into **General**, **Raid checklist**, **Maiden**, **Popup**, and **Testing (dev)** sections. Highlights:
+Grouped into **General**, **Raid checklist**, **Maiden**, **Bloat**, **Popup**, and **Testing (dev)** sections. Highlights:
 
 - Toggle the gear check, each individual checklist item, and the automatic raid-entry door check.
 - Maiden prompts and tile markers, each individually toggleable.
+- Bloat setup prompt, prayer prompt, post-room reminders, true-tile marker, player hider, and floor recolor — each independently toggleable.
 - Popup font size, position, opacity, issue colours, and flashing.
 
 See the **[Settings wiki page](../../wiki/Settings)** for every option.
@@ -66,8 +67,8 @@ Built in phases; every feature is individually toggleable.
 
 - **✅ Phase 1 — Setups & core:** all four roles with Scythe/No-Scythe variants, per-role spellbooks and runes, priority-based gear detection with bank-upgrade hints.
 - **✅ Phase 2 — Standalone features:** sidebar loadout visualizer, full pre-raid checklist, reusable proximity-zone engine (raid-start door check), dark-cockpit colours, per-popup dismissal and flashing.
-- **🔄 Phase 3 — In-room guidance (in progress):** per-room, per-role entry checks, prayer reminders, tile markers, and HP callouts. ✅ Maiden complete. Bloat, Nylocas, Sotetseg, Xarpus, Verzik coming next.
-- **🔭 Phase 4 — Quality of life:** hide the Bloat floor, hide other players, highlight Nylocas aggros.
+- **🔄 Phase 3 — In-room guidance (in progress):** per-room, per-role entry checks, prayer reminders, tile markers, and HP callouts. ✅ Maiden complete. ✅ Bloat complete. Nylocas, Sotetseg, Xarpus, Verzik coming next.
+- **🔭 Phase 4 — Quality of life:** highlight Nylocas aggros and other polish.
 
 Detail on each phase lives on the **[Roadmap wiki page](../../wiki/Roadmap)**.
 
@@ -75,7 +76,14 @@ Detail on each phase lives on the **[Roadmap wiki page](../../wiki/Roadmap)**.
 
 ## Changelog
 
-### 1.1.2 — Item ID expansion and bank snapshot
+### 1.1.2 — Bloat room and item ID expansion
+- **Bloat setup prompt:** on entering the setup area, a comply-style popup reminds you to have Crystal Halberd and Salve (e); each step clears as soon as the item is in your equipment or inventory. Once per raid
+- **Bloat prayer prompt:** armed when you cross the prayer box; stays up until both Protect from Missiles and Piety are active. Once per raid
+- **Bloat post-room reminders:** once Bloat dies and you enter the exit corridor, a comply popup prompts you to drop Salve and pick up a Stamina potion (4). Persists until both are done, once per raid
+- **Bloat true-tile marker:** draws Bloat's 5×5 footprint in light grey while he is in the room
+- **Bloat floor recolor:** paints the danger floor tiles (IDs 32941–32948) a uniform dark teal (#135357) so the room is easier to read; toggle in settings
+- **Hide other players (Bloat):** hides all players except yourself while Bloat is present; toggle in settings
+- **Bloat config section:** all six features have independent toggles in a new Bloat section (between Maiden and Popup)
 - **Bank snapshot:** bank contents are now cached the first time you open your bank and persist for the session — no need to re-open the bank when switching roles or checking gear mid-raid
 - **Defender slot:** corrected item IDs and added all variants — Avernic Defender (normal + locked), Ghommal's Avernic 5 & 6 (normal + locked), Dragon Defender (normal + locked), Dragon Defender (t) (normal + locked). Avernic variants are flagged as an upgrade over Dragon Defender
 - **Boots slot:** added Avernic Treads (pr), (pr)(et), (pr)(pe) variants and Dragon Boots, (cr), (g). Full priority ladder: Treads Max → PR variants → base Treads → Primordial → Dragon Boots
