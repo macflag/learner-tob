@@ -49,9 +49,6 @@ public class TileMarkerOverlay extends Overlay
     // Bloat true tile: light grey.
     private static final Color BLOAT_STROKE = new Color(200, 200, 200);
     private static final Color BLOAT_FILL   = new Color(200, 200, 200, 40);
-    // Bloat floor: dark teal (#135357) — covers danger tiles with a safe-looking colour.
-    private static final Color BLOAT_FLOOR_STROKE = new Color(19, 83, 87);
-    private static final Color BLOAT_FLOOR_FILL   = new Color(19, 83, 87, 220);
 
     private static final String LABEL = "Stay in this area";
 
@@ -77,8 +74,6 @@ public class TileMarkerOverlay extends Overlay
 
     // Bloat NPC true-tile mark (null = Bloat not in room).
     private volatile Mark bloatMark;
-    // Floor tiles to recolor in the Bloat room (scene-local, valid for current scene).
-    private volatile List<LocalPoint> bloatFloorTiles = Collections.emptyList();
 
     @Inject
     TileMarkerOverlay(Client client)
@@ -102,12 +97,6 @@ public class TileMarkerOverlay extends Overlay
         this.bloatMark = mark;
     }
 
-    /** Plugin pushes scene-local floor tile points to recolor (empty = none). */
-    void setBloatFloor(List<LocalPoint> tiles)
-    {
-        this.bloatFloorTiles = tiles != null ? tiles : Collections.emptyList();
-    }
-
     @Override
     public Dimension render(Graphics2D g)
     {
@@ -127,10 +116,6 @@ public class TileMarkerOverlay extends Overlay
             drawNpcTile(g, m, BLOOD_FILL, BLOOD_STROKE);
         for (Mark m : nyloTiles)
             drawNpcTile(g, m, NYLO_FILL, NYLO_STROKE);
-
-        // Bloat floor tiles (draw before the NPC mark so the mark sits on top).
-        for (LocalPoint lp : bloatFloorTiles)
-            fillPoly(g, Perspective.getCanvasTilePoly(client, lp), BLOAT_FLOOR_FILL, BLOAT_FLOOR_STROKE);
 
         // Bloat NPC true tile.
         Mark bm = bloatMark;

@@ -21,7 +21,6 @@ import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
-import net.runelite.api.DecorativeObject;
 import net.runelite.api.EnumID;
 import net.runelite.api.GameState;
 import net.runelite.api.GroundObject;
@@ -31,7 +30,6 @@ import net.runelite.api.Player;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.Renderable;
 import net.runelite.api.Skill;
-import net.runelite.api.Tile;
 import net.runelite.api.Varbits;
 import net.runelite.api.NPC;
 import net.runelite.api.NPCComposition;
@@ -41,6 +39,7 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
+import net.runelite.api.events.GroundObjectSpawned;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.client.callback.ClientThread;
@@ -156,7 +155,6 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private boolean bloatPostArmed = false;
 	private boolean bloatPostPromptActive = false;
 	private boolean bloatNpcPresent = false;
-	private List<LocalPoint> bloatScannedFloorTiles = new ArrayList<>();
 
 	private final Hooks.RenderableDrawListener drawListener = this::shouldDraw;
 
@@ -781,9 +779,6 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 
 	private void updateBloatTiles(NPC bloat)
 	{
-		// Push floor tile recolor (static for the scene, controlled by config).
-		tileOverlay.setBloatFloor(config.bloatHideFloor() ? bloatScannedFloorTiles : java.util.Collections.emptyList());
-
 		if (!config.bloatTileMarker() || bloat == null)
 		{
 			tileOverlay.setBloat(null);
@@ -797,33 +792,23 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	}
 
 	/**
-	 * Scans the current scene for floor/decorative objects with IDs matching the
-	 * Bloat danger tiles and caches their local points for the overlay.
-	 * Called on LOGGED_IN (scene fully loaded). Runs on the event bus thread.
+	 * Hides Bloat danger floor tiles by nulling them out of the scene on spawn.
+	 * GroundObjectSpawned re-fires on each room/scene load so the hide reapplies
+	 * automatically on re-entry. Toggling bloatHideFloor off mid-session will not
+	 * restore already-hidden tiles until the next scene load — that is intentional.
+	 *
+	 * Documented fallback (not wired up): model recolor via
+	 * groundObject.getRenderable().getModel().getFaceColors1/2/3() (int[])
+	 * overwritten with JagexColor.rgbToHSL(0x135357, brightness), brightness ~1.0
+	 * tuned down toward 0.7 if the result appears too pale.
 	 */
-	private void scanBloatFloor()
+	@Subscribe
+	public void onGroundObjectSpawned(GroundObjectSpawned event)
 	{
-		List<LocalPoint> pts = new ArrayList<>();
-		Tile[][][] tiles = client.getScene().getTiles();
-		for (int x = 0; x < tiles[0].length; x++)
-		{
-			for (int y = 0; y < tiles[0][x].length; y++)
-			{
-				Tile tile = tiles[0][x][y];
-				if (tile == null) continue;
-				GroundObject go = tile.getGroundObject();
-				if (go != null && BLOAT_FLOOR_IDS.contains(go.getId()))
-				{
-					pts.add(tile.getLocalLocation());
-					continue;
-				}
-				DecorativeObject deco = tile.getDecorativeObject();
-				if (deco != null && BLOAT_FLOOR_IDS.contains(deco.getId()))
-					pts.add(tile.getLocalLocation());
-			}
-		}
-		bloatScannedFloorTiles = pts;
-		tileOverlay.setBloatFloor(config.bloatHideFloor() ? pts : java.util.Collections.emptyList());
+		if (!config.bloatHideFloor()) return;
+		GroundObject go = event.getGroundObject();
+		if (BLOAT_FLOOR_IDS.contains(go.getId()))
+			event.getTile().setGroundObject(null);
 	}
 
 	/**
@@ -1218,10 +1203,6 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 			bloatInSetupBox = false;
 			bloatPrayerActive = false;
 			bloatPostPromptActive = false;
-		}
-		else if (state == GameState.LOGGED_IN)
-		{
-			scanBloatFloor();
 		}
 	}
 
