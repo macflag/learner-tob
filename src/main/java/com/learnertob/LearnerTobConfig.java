@@ -26,12 +26,15 @@ public interface LearnerTobConfig extends Config
 	@ConfigSection(name = "Maiden", description = "Maiden room prompts and markers", position = 2)
 	String maidenSection = "maiden";
 
-	@ConfigSection(name = "Popup",   description = "Gear check popup appearance",  position = 3)
+	@ConfigSection(name = "Bloat", description = "Bloat room prompts and markers", position = 3)
+	String bloatSection = "bloat";
+
+	@ConfigSection(name = "Popup",   description = "Gear check popup appearance",  position = 4)
 	String popupSection = "popup";
 
 	@ConfigSection(name = "Testing (dev)", closedByDefault = true,
 			description = "Hide items from the plugin so you can test other roles/setups without banking gear",
-			position = 4)
+			position = 5)
 	String testingSection = "testing";
 
 	// --- General ---
@@ -128,6 +131,37 @@ public interface LearnerTobConfig extends Config
 			description = "Draw your role's 'stand here' box on the floor during Maiden.",
 			position = 4, section = maidenSection)
 	default boolean maidenTileMarkers() { return true; }
+
+	// --- Bloat ---
+	@ConfigItem(keyName = "bloatSetupCheck", name = "Bloat setup prompt",
+			description = "On entering Bloat, prompt to equip Crystal Halberd and Salve (e); clears once done.",
+			position = 0, section = bloatSection)
+	default boolean bloatSetupCheck() { return true; }
+
+	@ConfigItem(keyName = "bloatPrayerPrompt", name = "Bloat prayer prompt",
+			description = "On entering Bloat, stay-until-correct prompt to activate Ranged and Piety prayers.",
+			position = 1, section = bloatSection)
+	default boolean bloatPrayerPrompt() { return true; }
+
+	@ConfigItem(keyName = "bloatPostRoomReminders", name = "Post-Bloat reminders",
+			description = "After Bloat dies, prompt to drop Salve and buy a Stamina potion.",
+			position = 2, section = bloatSection)
+	default boolean bloatPostRoomReminders() { return true; }
+
+	@ConfigItem(keyName = "bloatTileMarker", name = "Bloat tile marker",
+			description = "Draw Bloat's true tile (5x5 footprint) while he is in the room.",
+			position = 3, section = bloatSection)
+	default boolean bloatTileMarker() { return true; }
+
+	@ConfigItem(keyName = "bloatHidePlayers", name = "Hide other players",
+			description = "Hide other players while in the Bloat room to reduce visual clutter.",
+			position = 4, section = bloatSection)
+	default boolean bloatHidePlayers() { return true; }
+
+	@ConfigItem(keyName = "bloatHideFloor", name = "Recolor floor tiles",
+			description = "Recolor Bloat's danger floor tiles to a uniform dark teal so the room is easier to read.",
+			position = 5, section = bloatSection)
+	default boolean bloatHideFloor() { return true; }
 
 	// --- Testing (dev): pretend you don't own certain items, to test other setups ---
 	@ConfigItem(keyName = "testHideScythe", name = "Hide Scythe",

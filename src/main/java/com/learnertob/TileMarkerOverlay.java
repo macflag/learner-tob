@@ -46,6 +46,12 @@ public class TileMarkerOverlay extends Overlay
     // Blood spawns: warm medium grey.
     private static final Color BLOOD_STROKE = new Color(165, 158, 158);
     private static final Color BLOOD_FILL   = new Color(165, 158, 158, 55);
+    // Bloat true tile: light grey.
+    private static final Color BLOAT_STROKE = new Color(200, 200, 200);
+    private static final Color BLOAT_FILL   = new Color(200, 200, 200, 40);
+    // Bloat floor: dark teal (#135357) — covers danger tiles with a safe-looking colour.
+    private static final Color BLOAT_FLOOR_STROKE = new Color(19, 83, 87);
+    private static final Color BLOAT_FLOOR_FILL   = new Color(19, 83, 87, 220);
 
     private static final String LABEL = "Stay in this area";
 
@@ -69,6 +75,11 @@ public class TileMarkerOverlay extends Overlay
     private volatile List<Mark> nyloTiles  = Collections.emptyList();
     private volatile List<Mark> bloodTiles = Collections.emptyList();
 
+    // Bloat NPC true-tile mark (null = Bloat not in room).
+    private volatile Mark bloatMark;
+    // Floor tiles to recolor in the Bloat room (scene-local, valid for current scene).
+    private volatile List<LocalPoint> bloatFloorTiles = Collections.emptyList();
+
     @Inject
     TileMarkerOverlay(Client client)
     {
@@ -77,12 +88,24 @@ public class TileMarkerOverlay extends Overlay
         setPosition(OverlayPosition.DYNAMIC);
     }
 
-    /** Plugin pushes the active markers each tick (any may be null/empty). */
+    /** Plugin pushes the active Maiden markers each tick (any may be null/empty). */
     void set(int[] box, List<Mark> nylos, List<Mark> bloods)
     {
         this.box = box;
         this.nyloTiles  = nylos  != null ? nylos  : Collections.emptyList();
         this.bloodTiles = bloods != null ? bloods : Collections.emptyList();
+    }
+
+    /** Plugin pushes the Bloat NPC mark each tick (null = not in room). */
+    void setBloat(Mark mark)
+    {
+        this.bloatMark = mark;
+    }
+
+    /** Plugin pushes scene-local floor tile points to recolor (empty = none). */
+    void setBloatFloor(List<LocalPoint> tiles)
+    {
+        this.bloatFloorTiles = tiles != null ? tiles : Collections.emptyList();
     }
 
     @Override
@@ -104,6 +127,15 @@ public class TileMarkerOverlay extends Overlay
             drawNpcTile(g, m, BLOOD_FILL, BLOOD_STROKE);
         for (Mark m : nyloTiles)
             drawNpcTile(g, m, NYLO_FILL, NYLO_STROKE);
+
+        // Bloat floor tiles (draw before the NPC mark so the mark sits on top).
+        for (LocalPoint lp : bloatFloorTiles)
+            fillPoly(g, Perspective.getCanvasTilePoly(client, lp), BLOAT_FLOOR_FILL, BLOAT_FLOOR_STROKE);
+
+        // Bloat NPC true tile.
+        Mark bm = bloatMark;
+        if (bm != null)
+            drawNpcTile(g, bm, BLOAT_FILL, BLOAT_STROKE);
 
         return null;
     }

@@ -21,13 +21,17 @@ import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.DecorativeObject;
 import net.runelite.api.EnumID;
 import net.runelite.api.GameState;
+import net.runelite.api.GroundObject;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.Player;
 import net.runelite.api.ItemContainer;
+import net.runelite.api.Renderable;
 import net.runelite.api.Skill;
+import net.runelite.api.Tile;
 import net.runelite.api.Varbits;
 import net.runelite.api.NPC;
 import net.runelite.api.NPCComposition;
@@ -40,6 +44,7 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.callback.Hooks;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.ItemEquipmentStats;
@@ -84,6 +89,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private static final Color RED     = new Color(220, 90, 90);
 
 	@Inject private Client client;
+	@Inject private Hooks hooks;
 	@Inject private LearnerTobConfig config;
 	@Inject private ConfigManager configManager;
 	@Inject private ItemManager itemManager;
@@ -99,6 +105,10 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private boolean lastScytheSetup = true;
 	private boolean lastOathWhip = false;
 	private Item[] bankSnapshot = new Item[0];
+
+	private static final int BLOAT_ID = 8359;
+	private static final Set<Integer> BLOAT_FLOOR_IDS = new HashSet<>(java.util.Arrays.asList(
+			32941, 32942, 32943, 32944, 32945, 32946, 32947, 32948));
 
 	// Maiden phases by NPC id (she transforms at 70/50/30%). Normal + Story mode.
 	private static final Set<Integer> MAIDEN_IDS = new HashSet<>(java.util.Arrays.asList(
@@ -132,6 +142,24 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private boolean maidenInPrayerBox = false;
 	private boolean maidenPrayerArmed = false; // stay-mode: armed on entry, holds until correct
 
+	// Bloat per-raid state
+	private ZoneTrigger bloatSetupZone;
+	private ZoneTrigger bloatPrayerZone;
+	private ZoneTrigger bloatPostZone;
+	private boolean bloatSetupHandled = false;
+	private boolean bloatSetupPromptActive = false;
+	private boolean bloatInSetupBox = false;
+	private boolean bloatPrayerHandled = false;
+	private boolean bloatPrayerArmed = false;
+	private boolean bloatPrayerActive = false;
+	private boolean bloatPostHandled = false;
+	private boolean bloatPostArmed = false;
+	private boolean bloatPostPromptActive = false;
+	private boolean bloatNpcPresent = false;
+	private List<LocalPoint> bloatScannedFloorTiles = new ArrayList<>();
+
+	private final Hooks.RenderableDrawListener drawListener = this::shouldDraw;
+
 	@Provides
 	LearnerTobConfig provideConfig(ConfigManager cm)
 	{
@@ -144,6 +172,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		overlayManager.add(overlay);
 		overlayManager.add(tileOverlay);
 		mouseManager.registerMouseListener(this);
+		hooks.registerRenderableDrawListener(drawListener);
 
 		navButton = NavigationButton.builder()
 				.tooltip("Learner ToB")
@@ -185,6 +214,16 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		// on entry telling you which prayers to flick.
 		maidenPrayerZone = new ZoneTrigger("Maiden \u2014 prayers", 3181, 3184, 4443, 4450, 0,
 				java.util.Collections::emptyList);
+
+		// Bloat setup box: equip Crystal Halberd and Salve.
+		bloatSetupZone = new ZoneTrigger("Bloat \u2014 setup", 3317, 3322, 4446, 4449, 0,
+				java.util.Collections::emptyList);
+		// Bloat prayer box: arm Ranged + Piety prayers.
+		bloatPrayerZone = new ZoneTrigger("Bloat \u2014 prayers", 3305, 3305, 4446, 4449, 0,
+				java.util.Collections::emptyList);
+		// Bloat post-room box: triggered after Bloat is dead.
+		bloatPostZone = new ZoneTrigger("Bloat \u2014 post", 3274, 3278, 4446, 4449, 0,
+				java.util.Collections::emptyList);
 	}
 
 	@Override
@@ -193,6 +232,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		overlayManager.remove(overlay);
 		overlayManager.remove(tileOverlay);
 		mouseManager.unregisterMouseListener(this);
+		hooks.unregisterRenderableDrawListener(drawListener);
 		clientToolbar.removeNavigation(navButton);
 		overlay.dismiss();
 	}
@@ -600,6 +640,14 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 			maidenInPrayerBox = false;
 			maidenPrayerArmed = false;
 			maiden75 = maiden55 = maiden35 = maiden0 = false;
+
+			bloatSetupHandled = false;
+			bloatInSetupBox = false;
+			bloatPrayerHandled = false;
+			bloatPrayerArmed = false;
+			bloatPostHandled = false;
+			bloatPostArmed = false;
+			bloatNpcPresent = false;
 		}
 
 		WorldPoint wp = playerWorldPoint(local);
@@ -640,6 +688,9 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 
 		// Role-specific standing box on the floor.
 		updateMaidenTiles();
+
+		// Bloat room prompts and markers.
+		updateBloat(wp);
 	}
 
 	/**
@@ -703,6 +754,213 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		}
 
 		tileOverlay.set(box, nylos, bloods);
+	}
+
+	// ------------------------------------------------------------------
+	//  Bloat room engine
+	// ------------------------------------------------------------------
+
+	private void updateBloat(WorldPoint wp)
+	{
+		NPC bloat = findBloat();
+		bloatNpcPresent = (bloat != null);
+
+		updateBloatTiles(bloat);
+		updateBloatSetup(wp);
+		updateBloatPrayer(wp);
+		updateBloatPost(wp);
+	}
+
+	private NPC findBloat()
+	{
+		for (NPC npc : client.getNpcs())
+			if (npc != null && npc.getId() == BLOAT_ID)
+				return npc;
+		return null;
+	}
+
+	private void updateBloatTiles(NPC bloat)
+	{
+		// Push floor tile recolor (static for the scene, controlled by config).
+		tileOverlay.setBloatFloor(config.bloatHideFloor() ? bloatScannedFloorTiles : java.util.Collections.emptyList());
+
+		if (!config.bloatTileMarker() || bloat == null)
+		{
+			tileOverlay.setBloat(null);
+			return;
+		}
+		WorldPoint wl = bloat.getWorldLocation();
+		if (wl == null) { tileOverlay.setBloat(null); return; }
+		NPCComposition comp = bloat.getTransformedComposition();
+		int size = comp != null ? comp.getSize() : 5;
+		tileOverlay.setBloat(new TileMarkerOverlay.Mark(wl, size));
+	}
+
+	/**
+	 * Scans the current scene for floor/decorative objects with IDs matching the
+	 * Bloat danger tiles and caches their local points for the overlay.
+	 * Called on LOGGED_IN (scene fully loaded). Runs on the event bus thread.
+	 */
+	private void scanBloatFloor()
+	{
+		List<LocalPoint> pts = new ArrayList<>();
+		Tile[][][] tiles = client.getScene().getTiles();
+		for (int x = 0; x < tiles[0].length; x++)
+		{
+			for (int y = 0; y < tiles[0][x].length; y++)
+			{
+				Tile tile = tiles[0][x][y];
+				if (tile == null) continue;
+				GroundObject go = tile.getGroundObject();
+				if (go != null && BLOAT_FLOOR_IDS.contains(go.getId()))
+				{
+					pts.add(tile.getLocalLocation());
+					continue;
+				}
+				DecorativeObject deco = tile.getDecorativeObject();
+				if (deco != null && BLOAT_FLOOR_IDS.contains(deco.getId()))
+					pts.add(tile.getLocalLocation());
+			}
+		}
+		bloatScannedFloorTiles = pts;
+		tileOverlay.setBloatFloor(config.bloatHideFloor() ? pts : java.util.Collections.emptyList());
+	}
+
+	/**
+	 * Entry setup prompt: while in the setup box, show steps to equip Crystal
+	 * Halberd and Salve (e). Clears the moment both are present. Once per raid.
+	 */
+	private void updateBloatSetup(WorldPoint wp)
+	{
+		if (bloatPrayerActive) return; // prayer comply takes precedence
+
+		boolean inBox = config.bloatSetupCheck() && bloatSetupZone.contains(wp);
+
+		if (!inBox)
+		{
+			if (bloatSetupPromptActive)
+			{
+				overlay.dismiss();
+				bloatSetupPromptActive = false;
+			}
+			if (bloatInSetupBox)
+				bloatSetupHandled = true;
+			bloatInSetupBox = false;
+			return;
+		}
+
+		bloatInSetupBox = true;
+		if (bloatSetupHandled) return;
+
+		List<String> steps = bloatSetupSteps();
+		if (steps.isEmpty())
+		{
+			if (bloatSetupPromptActive) { overlay.dismiss(); bloatSetupPromptActive = false; }
+			bloatSetupHandled = true;
+			return;
+		}
+
+		overlay.showResult("Bloat — setup", steps, GearCheckOverlay.DismissMode.COMPLY, 0, true);
+		bloatSetupPromptActive = true;
+	}
+
+	private List<String> bloatSetupSteps()
+	{
+		List<String> steps = new ArrayList<>();
+		Map<Integer, Integer> worn = containerCounts(InventoryID.EQUIPMENT);
+		Map<Integer, Integer> inv  = containerCounts(InventoryID.INVENTORY);
+		if (!worn.containsKey(Presets.CRYSTAL_HALBERD) && !inv.containsKey(Presets.CRYSTAL_HALBERD))
+			steps.add("Equip Crystal Halberd");
+		if (!worn.containsKey(Presets.SALVE_AMULET_E) && !inv.containsKey(Presets.SALVE_AMULET_E))
+			steps.add("Equip Salve (e)");
+		return steps;
+	}
+
+	/**
+	 * Prayer prompt: armed on entering the prayer box, stays until both
+	 * Protect from Missiles and Piety are active. Once per raid.
+	 */
+	private void updateBloatPrayer(WorldPoint wp)
+	{
+		if (!config.bloatPrayerPrompt()) return;
+		if (bloatPrayerHandled) return;
+
+		boolean inBox = bloatPrayerZone.contains(wp);
+		if (inBox) bloatPrayerArmed = true;
+		if (!bloatPrayerArmed) return;
+
+		List<String> steps = bloatPrayerSteps();
+		if (steps.isEmpty())
+		{
+			if (bloatPrayerActive) { overlay.dismiss(); bloatPrayerActive = false; }
+			bloatPrayerHandled = true;
+			return;
+		}
+
+		overlay.showResult("Bloat — prayers", steps, GearCheckOverlay.DismissMode.COMPLY, 0, true);
+		bloatPrayerActive = true;
+	}
+
+	private List<String> bloatPrayerSteps()
+	{
+		List<String> steps = new ArrayList<>();
+		if (!client.isPrayerActive(Prayer.PROTECT_FROM_MISSILES))
+			steps.add("Pray Ranged");
+		if (!client.isPrayerActive(Prayer.PIETY))
+			steps.add("Pray Piety");
+		return steps;
+	}
+
+	/**
+	 * Post-Bloat reminders: armed when the player enters the post box with Bloat
+	 * already dead. Stays until Salve is dropped and a Stamina potion is in inventory.
+	 * Once per raid.
+	 */
+	private void updateBloatPost(WorldPoint wp)
+	{
+		if (!config.bloatPostRoomReminders()) return;
+		if (bloatPostHandled) return;
+
+		boolean inBox = bloatPostZone.contains(wp);
+		if (inBox && !bloatNpcPresent) bloatPostArmed = true;
+		if (!bloatPostArmed) return;
+
+		List<String> steps = bloatPostSteps();
+		if (steps.isEmpty())
+		{
+			if (bloatPostPromptActive) { overlay.dismiss(); bloatPostPromptActive = false; }
+			bloatPostHandled = true;
+			return;
+		}
+
+		overlay.showResult("Bloat — after room", steps, GearCheckOverlay.DismissMode.COMPLY, 0, true);
+		bloatPostPromptActive = true;
+	}
+
+	private List<String> bloatPostSteps()
+	{
+		List<String> steps = new ArrayList<>();
+		Map<Integer, Integer> worn = containerCounts(InventoryID.EQUIPMENT);
+		Map<Integer, Integer> inv  = containerCounts(InventoryID.INVENTORY);
+		if (worn.containsKey(Presets.SALVE_AMULET_E) || inv.containsKey(Presets.SALVE_AMULET_E))
+			steps.add("Drop Salve");
+		if (!inv.containsKey(Presets.STAMINA_POTION_4))
+			steps.add("Buy Stamina (4)");
+		return steps;
+	}
+
+	/**
+	 * Returns false for other players while Bloat is present and bloatHidePlayers is on.
+	 * All other renderables pass through (return true = draw normally).
+	 */
+	private boolean shouldDraw(Renderable renderable, boolean drawingUI)
+	{
+		if (config.bloatHidePlayers() && bloatNpcPresent && renderable instanceof Player)
+		{
+			Player p = (Player) renderable;
+			return p == client.getLocalPlayer();
+		}
+		return true;
 	}
 
 	/**
@@ -956,6 +1214,14 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 			maidenPromptActive = false;
 			maidenInBox = false;
 			maidenPrayerActive = false;
+			bloatSetupPromptActive = false;
+			bloatInSetupBox = false;
+			bloatPrayerActive = false;
+			bloatPostPromptActive = false;
+		}
+		else if (state == GameState.LOGGED_IN)
+		{
+			scanBloatFloor();
 		}
 	}
 
