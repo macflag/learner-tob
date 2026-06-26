@@ -75,6 +75,14 @@ Detail on each phase lives on the **[Roadmap wiki page](../../wiki/Roadmap)**.
 
 ## Changelog
 
+### 1.1.2 — Item ID expansion and bank snapshot
+- **Bank snapshot:** bank contents are now cached the first time you open your bank and persist for the session — no need to re-open the bank when switching roles or checking gear mid-raid
+- **Defender slot:** corrected item IDs and added all variants — Avernic Defender (normal + locked), Ghommal's Avernic 5 & 6 (normal + locked), Dragon Defender (normal + locked), Dragon Defender (t) (normal + locked). Avernic variants are flagged as an upgrade over Dragon Defender
+- **Boots slot:** added Avernic Treads (pr), (pr)(et), (pr)(pe) variants and Dragon Boots, (cr), (g). Full priority ladder: Treads Max → PR variants → base Treads → Primordial → Dragon Boots
+- **Anguish:** Necklace of Anguish (base) accepted alongside Anguish (or) in all setups that use it
+- **Blessing (ammo slot):** Rada's Blessing 3, Ancient, Holy, Honourable, and Peaceful Blessings all accepted alongside Rada's Blessing 4. Rada's 4 is flagged as an upgrade over the others
+- **Freeze staff:** full weapon ladder accepted for NFRZ/SFRZ — Volatile Nightmare Staff (DM) → Kodai Wand → Ice Ancient Sceptre → Blood Ancient Sceptre → Ancient Sceptre (all with locked variants). Upgrade hints fire for freeze roles when a better staff is in the bank
+
 ### 1.1.1 — Maiden
 - Maiden setup prompt on entry: reminds you to drop Salve and equip Elder Maul or Dragon Warhammer (comply-style, once per raid)
 - Maiden prayer prompt on entry: tells you which prayers to activate based on your role and setup (Magic + Piety for scythe, Rigour for all other MDPS/RDPS including Oathplate-Whip, Augury for freezers). Two modes: flash-once (skipped if already praying correctly) or stay-until-correct (toggle in settings)
