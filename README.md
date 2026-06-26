@@ -12,13 +12,30 @@ The plugin is **bank-driven** — there are no gear dropdowns to configure. Open
 
 ## Features
 
+### Pre-raid
+
 - **Automatic setup detection** — reads your bank, equipment, and inventory and resolves the correct loadout for your role and setup variant (Scythe, No-Scythe, or MDPS Oathplate-Whip), with no configuration required.
 - **Sidebar loadout visualizer** — your expected loadout laid out like the in-game screen (inventory grid, equipment cross, spellbook, rune pouch). Hover any cell to identify it.
 - **Gear check** — validates what you are wearing and carrying against your role's loadout. Run it manually (button or `::tobcheck`), or let it run automatically at the raid-start door.
 - **Pre-raid checklist** — spellbook, runes, auto-retaliate, pre-pot boosts, and HP overheal, each individually toggleable.
-- **In-room guidance (Maiden & Bloat)** — room-specific setup prompts, prayer reminders, HP call-outs (Maiden), floor tile markers, Bloat true-tile (5×5), floor tile recolor, and other-player hiding. All features are individually toggleable per room.
 - **Dark-cockpit design** — no green. **Yellow** = in bank, **red** = missing/wrong, **neutral** = ready. Your eye is only drawn to what still needs action.
 - **Smart popups** — click-inside-to-close (the click is swallowed so you don't walk), timed auto-dismiss, comply-style (stays until you act), and optional flashing for urgent alerts.
+
+### Maiden
+
+- **Setup prompt** — comply-style popup on entry reminding you to drop Salve and equip your Elder Maul or Dragon Warhammer. Clears once done. Once per raid.
+- **Prayer prompt** — tells you which prayers to activate based on your role and setup (Magic + Piety / Rigour / Augury). Flash-once or stay-until-correct mode.
+- **HP call-outs** — role-specific prompts at 75%, 55%, and 35%.
+- **Floor tile markers** — your role's 4×4 standing box, Nylocas Matomenos true tiles (freeze roles), and blood spawn true tiles (all roles).
+
+### Bloat
+
+- **Setup prompt** — comply-style popup reminding you to have Crystal Halberd and Salve (e) ready. Each step clears independently. Once per raid.
+- **Prayer prompt** — armed on entering the prayer zone; stays up until Protect from Missiles and Piety are both active. Once per raid.
+- **Post-room reminders** — after Bloat dies, prompts you to drop Salve and pick up a Stamina potion. Once per raid.
+- **True-tile marker** — draws Bloat's 5×5 footprint in light grey while he is in the room.
+- **Floor recolor** — paints the danger floor tiles a uniform dark teal so the room layout is easier to read.
+- **Hide other players** — hides all other players while Bloat is alive to reduce visual clutter.
 
 See the wiki for the full per-role breakdown and the exact check rules.
 
