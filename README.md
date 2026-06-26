@@ -83,6 +83,13 @@ Detail on each phase lives on the **[Roadmap wiki page](../../wiki/Roadmap)**.
 - **Blessing (ammo slot):** Rada's Blessing 3, Ancient, Holy, Honourable, and Peaceful Blessings all accepted alongside Rada's Blessing 4. Rada's 4 is flagged as an upgrade over the others
 - **Freeze staff:** full weapon ladder accepted for NFRZ/SFRZ — Volatile Nightmare Staff (DM) → Kodai Wand → Ice Ancient Sceptre → Blood Ancient Sceptre → Ancient Sceptre (all with locked variants). Upgrade hints fire for freeze roles when a better staff is in the bank
 - **Maiden 0% call-out:** flashing 2-second popup "Drink Divine Super Combat" fires for all roles when Maiden reaches 0% HP
+- **Mage weapon coverage:** all Trident of the Swamp and Trident of the Seas variants now accepted, including (e), (o), and (e+o) cosmetic versions, charged and uncharged. Trident of the Seas added as a valid mage weapon across all roles. Priority order: Eye of Ayak → Sanguinesti Staff → Trident of the Swamp → Trident of the Seas, charged copies preferred over uncharged
+- **Uncharged weapon warnings:** gear check now adds a problem if your mage weapon or scythe is uncharged — catches the easy-to-miss case where the item passes the "have it" check but can't actually be used
+- **Imbued mage cape (NFRZ/SFRZ):** all imbued cape variants now accepted as the mage switch — Guthix, Saradomin, and Zamorak in base, max, locked, and deadman variants
+- **Occult Necklace:** base Occult Necklace accepted alongside Occult (or) for freeze roles
+- **Melee cape:** Infernal Max Cape (normal) added alongside the locked variant
+- **Rune Pouch:** Divine Rune Pouch (normal) added alongside the locked variant
+- **Scythe cosmetics:** uncharged variants of Holy Scythe and Sanguine Scythe added; charged copies are now shown first in the panel
 
 ### 1.1.1 — Maiden
 - Maiden setup prompt on entry: reminds you to drop Salve and equip Elder Maul or Dragon Warhammer (comply-style, once per raid)
