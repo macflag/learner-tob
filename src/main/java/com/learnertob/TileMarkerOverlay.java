@@ -136,7 +136,8 @@ public class TileMarkerOverlay extends Overlay
                 fillPoly(g, Perspective.getCanvasTileAreaPoly(client, rendered, bloatSize),
                         BLOAT_FILL, BLOAT_STROKE);
 
-            LocalPoint trueSW = LocalPoint.fromWorld(client, bloat.getWorldLocation());
+            WorldPoint trueWorld = WorldPoint.fromLocalInstance(client, bloat.getLocalLocation());
+            LocalPoint trueSW = (trueWorld != null) ? LocalPoint.fromWorld(client, trueWorld) : null;
             if (trueSW != null)
             {
                 int half = (bloatSize - 1) * Perspective.LOCAL_TILE_SIZE / 2;
