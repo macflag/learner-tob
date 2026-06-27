@@ -65,7 +65,8 @@ import net.runelite.client.ui.overlay.OverlayManager;
 @PluginDescriptor(
 		name = "Learner ToB",
 		description = "Bank-driven gear checks for learning Theatre of Blood",
-		tags = {"tob", "theatre", "blood", "raid", "learner", "pvm"}
+		tags = {"tob", "theatre", "blood", "raid", "learner", "pvm"},
+		configName = "learnertob"
 )
 public class LearnerTobPlugin extends Plugin implements MouseListener
 {
