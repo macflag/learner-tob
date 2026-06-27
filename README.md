@@ -30,7 +30,7 @@ The plugin is **bank-driven** — there are no gear dropdowns to configure. Open
 
 ### Bloat
 
-- **Setup prompt** — comply-style popup reminding you to have Crystal Halberd and Salve (e) ready. Each step clears independently. Once per raid.
+- **Setup prompt** — comply-style popup at the end of the Maiden corridor reminding you to equip Crystal Halberd and Salve (e). Each step clears as soon as the item is equipped. Once per raid.
 - **Prayer prompt** — armed on entering the prayer zone; stays up until Protect from Missiles and Piety are both active. Once per raid.
 - **Post-room reminders** — after Bloat dies, prompts you to drop Salve and pick up a Stamina potion. Once per raid.
 - **Tile markers** — draws Bloat's 5×5 footprint as two overlapping tiles: a grey rendered tile (client position) and a white true tile (server position, one tick ahead). When Bloat turns, the white tile snaps before the animation catches up.
@@ -53,15 +53,6 @@ Pick your role from the **Role** dropdown at the top of the sidebar. Setup varia
 | **SFRZ** — South Freeze | Ancient |
 
 Full loadouts, rune lists, and accepted substitutions are on the **[Loadouts wiki page](../../wiki/Loadouts)**.
-
----
-
-## Commands
-
-| Command | Description |
-| --- | --- |
-| `::tobcheck` | Run the full gear + checklist check. Shows a popup, prints to chat for 4+ issues, and copies the result to your clipboard. |
-| `::tobdump` | Print every equipped/inventory item ID, plus spellbook, rune pouch, and auto-retaliate state, and copy it to the clipboard. Useful for reporting issues or adding gear. |
 
 ---
 
@@ -93,14 +84,14 @@ Detail on each phase lives on the **[Roadmap wiki page](../../wiki/Roadmap)**.
 
 ## Changelog
 
-### 1.1.2 — Bloat room and item ID expansion
-- **Bloat setup prompt:** on entering the setup area, a comply-style popup reminds you to have Crystal Halberd and Salve (e); each step clears as soon as the item is in your equipment or inventory. Once per raid
+### 1.1.2 — Bloat room
+- **Bloat setup prompt:** at the end of the Maiden corridor, a comply-style popup reminds you to equip Crystal Halberd and Salve (e); each step clears as soon as the item is equipped. Once per raid
 - **Bloat prayer prompt:** armed when you cross the prayer box; stays up until both Protect from Missiles and Piety are active. Once per raid
-- **Bloat post-room reminders:** once Bloat dies and you enter the exit corridor, a comply popup prompts you to drop Salve and pick up a Stamina potion (4). Persists until both are done, once per raid
+- **Bloat post-room reminders:** once Bloat dies and you enter the exit corridor, a comply popup prompts you to drop Salve and pick up a Stamina potion (4). Persists until both are done. Once per raid
 - **Bloat tile markers:** draws Bloat's 5×5 footprint as two overlapping tiles — a grey rendered tile (client/visual position) and a white true tile (server position, one tick ahead of the animation). When Bloat turns, the white tile snaps before the model catches up, giving an early read on his new facing direction
-- **Bloat floor recolor:** paints the danger floor tiles (IDs 32941–32948) a uniform colour so the room is easier to read; toggle and colour are each independently configurable in settings (default dark teal #135357)
+- **Bloat floor recolor:** paints the danger floor tiles a uniform colour so the room is easier to read; toggle and colour are each independently configurable in settings (default dark teal #135357)
 - **Hide other players (Bloat):** hides all players except yourself while Bloat is present; toggle in settings
-- **Bloat config section:** all seven features have independent toggles in a new Bloat section (between Maiden and Popup)
+- **Bloat config section:** all six features have independent toggles in a new Bloat section
 - **Bank snapshot:** bank contents are now cached the first time you open your bank and persist for the session — no need to re-open the bank when switching roles or checking gear mid-raid
 - **Defender slot:** corrected item IDs and added all variants — Avernic Defender (normal + locked), Ghommal's Avernic 5 & 6 (normal + locked), Dragon Defender (normal + locked), Dragon Defender (t) (normal + locked). Avernic variants are flagged as an upgrade over Dragon Defender
 - **Boots slot:** added Avernic Treads (pr), (pr)(et), (pr)(pe) variants and Dragon Boots, (cr), (g). Full priority ladder: Treads Max → PR variants → base Treads → Primordial → Dragon Boots

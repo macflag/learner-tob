@@ -113,15 +113,22 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private boolean lastOathWhip = false;
 	private Item[] bankSnapshot = new Item[0];
 
-	private static final int BLOAT_ID = 8359;
+	private static final Set<Integer> BLOAT_IDS = new HashSet<>(java.util.Arrays.asList(
+			10812,  // Entry
+			10813,  // Hard
+			8359)); // Normal
 	private static final Set<Integer> BLOAT_FLOOR_IDS = new HashSet<>(java.util.Arrays.asList(
 			32941, 32942, 32943, 32944, 32945, 32946, 32947, 32948));
 	// Maiden phases by NPC id (she transforms at 70/50/30%). Normal + Story mode.
 	private static final Set<Integer> MAIDEN_IDS = new HashSet<>(java.util.Arrays.asList(
-			8360, 8361, 8362, 8363, 8364, 8365,
-			10814, 10815, 10816, 10817, 10818, 10819));
-	// Nylocas Matomenos (the nylos freezers target): Entry + Normal.
-	private static final Set<Integer> NYLO_IDS = new HashSet<>(java.util.Arrays.asList(10820, 8366));
+			8360, 8361, 8362, 8363, 8364, 8365,        // Normal (6 phases; 8360-8363 wiki-confirmed, 8364/8365 by observed pattern — verify in-game)
+			10814, 10815, 10816, 10817, 10818, 10819,  // Entry (all 6 confirmed via in-game NPC dump)
+			10822));                                    // Hard base (confirmed; later Hard phases need in-game dump to confirm)
+	// Nylocas Matomenos (the nylos freezers target): Maiden room, all modes.
+	private static final Set<Integer> NYLO_IDS = new HashSet<>(java.util.Arrays.asList(
+			8366,    // Normal Maiden
+			10820,   // Entry Maiden
+			10828)); // Hard Maiden
 	// Blood spawns (all roles): Entry + Normal.
 	private static final Set<Integer> BLOOD_IDS = new HashSet<>(java.util.Arrays.asList(8367, 10821, 10829));
 	private boolean maiden75, maiden55, maiden35, maiden0;
@@ -160,6 +167,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private boolean bloatPrayerActive = false;
 	private boolean bloatPostHandled = false;
 	private boolean bloatPostArmed = false;
+	private boolean bloatPostInBox = false;
 	private boolean bloatPostPromptActive = false;
 	private boolean bloatNpcPresent = false;
 	private NPC bloatNpc = null;
@@ -222,7 +230,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 				java.util.Collections::emptyList);
 
 		// Bloat setup box: equip Crystal Halberd and Salve.
-		bloatSetupZone = new ZoneTrigger("Bloat \u2014 setup", 3178, 3181, 4430, 4432, 0,
+		bloatSetupZone = new ZoneTrigger("Bloat \u2014 setup", 3175, 3180, 4422, 4432, 0,
 				java.util.Collections::emptyList);
 		// Bloat prayer box: arm Ranged + Piety prayers.
 		bloatPrayerZone = new ZoneTrigger("Bloat \u2014 prayers", 3305, 3305, 4446, 4449, 0,
@@ -653,6 +661,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 			bloatPrayerArmed = false;
 			bloatPostHandled = false;
 			bloatPostArmed = false;
+			bloatPostInBox = false;
 			bloatNpcPresent = false;
 			bloatNpc = null;
 		}
@@ -698,12 +707,6 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 
 		// Bloat room prompts and markers.
 		updateBloat(wp);
-
-		// Reapply floor recolor every tick while in the Bloat room — the GPU plugin
-		// rebuilds zones after scene load and overwrites a one-shot recolor.
-		if (wp.getX() >= 3288 && wp.getX() <= 3303
-				&& wp.getY() >= 4440 && wp.getY() <= 4455)
-			applyBloatFloorRecolor();
 	}
 
 	/**
@@ -788,7 +791,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	{
 		for (NPC npc : client.getNpcs())
 		{
-			if (npc != null && npc.getId() == BLOAT_ID)
+			if (npc != null && BLOAT_IDS.contains(npc.getId()))
 			{
 				bloatNpc = npc;
 				return npc;
@@ -820,14 +823,13 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	@Subscribe
 	public void onPreMapLoad(PreMapLoad event)
 	{
-		applyBloatFloorRecolor();
+		applyBloatFloorRecolor(event.getScene());
 	}
 
-	private void applyBloatFloorRecolor()
+	private void applyBloatFloorRecolor(Scene scene)
 	{
 		if (!config.bloatRecolorFloor()) return;
 		int hsl = getSafeHsl(config.bloatFloorColor());
-		Scene scene = client.getScene();
 		Tile[][] plane0 = scene.getTiles()[0];
 		for (Tile[] row : plane0)
 		{
@@ -850,6 +852,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 					paint.setNeColor(hsl);
 					paint.setSwColor(hsl);
 					paint.setSeColor(hsl);
+					tile.setSceneTilePaint(paint);
 				}
 
 				GroundObject obj = tile.getGroundObject();
@@ -905,7 +908,6 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	{
 		if (!config.bloatSetupCheck()) return;
 		if (bloatSetupHandled) return;
-
 		boolean inBox = bloatSetupZone.contains(wp);
 		if (inBox) bloatSetupArmed = true;
 		if (!bloatSetupArmed) return;
@@ -926,10 +928,9 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	{
 		List<String> steps = new ArrayList<>();
 		Map<Integer, Integer> worn = containerCounts(InventoryID.EQUIPMENT);
-		Map<Integer, Integer> inv  = containerCounts(InventoryID.INVENTORY);
-		if (!worn.containsKey(Presets.CRYSTAL_HALBERD) && !inv.containsKey(Presets.CRYSTAL_HALBERD))
+		if (!worn.containsKey(Presets.CRYSTAL_HALBERD))
 			steps.add("Equip Crystal Halberd");
-		if (!worn.containsKey(Presets.SALVE_AMULET_E) && !inv.containsKey(Presets.SALVE_AMULET_E))
+		if (!worn.containsKey(Presets.SALVE_AMULET_E))
 			steps.add("Equip Salve (e)");
 		return steps;
 	}
@@ -981,6 +982,17 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 
 		boolean inBox = bloatPostZone.contains(wp);
 		if (inBox && !bloatNpcPresent) bloatPostArmed = true;
+
+		// Once armed, cancel if the player leaves the post-zone (walked into Nylocas).
+		if (bloatPostArmed && !inBox && bloatPostInBox)
+		{
+			if (bloatPostPromptActive) { overlay.dismiss(); bloatPostPromptActive = false; }
+			bloatPostHandled = true;
+			bloatPostInBox = false;
+			return;
+		}
+		bloatPostInBox = inBox;
+
 		if (!bloatPostArmed) return;
 
 		List<String> steps = bloatPostSteps();

@@ -24,6 +24,7 @@ import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.OverlayUtil;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Draws Maiden-room floor markers, all tuned to the room's maroon palette but
@@ -37,6 +38,7 @@ import net.runelite.client.ui.overlay.OverlayUtil;
  * size, so multi-tile mobs are centred on their full footprint rather than
  * highlighting just the south-west corner.
  */
+@Slf4j
 public class TileMarkerOverlay extends Overlay
 {
     // Where you stand: soft, muted dusty rose that sits in the room's palette.
@@ -136,8 +138,12 @@ public class TileMarkerOverlay extends Overlay
                 fillPoly(g, Perspective.getCanvasTileAreaPoly(client, rendered, bloatSize),
                         BLOAT_FILL, BLOAT_STROKE);
 
-            WorldPoint trueWorld = WorldPoint.fromLocalInstance(client, bloat.getLocalLocation());
-            LocalPoint trueSW = (trueWorld != null) ? LocalPoint.fromWorld(client, trueWorld) : null;
+            WorldPoint bWorld = bloat.getWorldLocation();
+            WorldPoint bInst  = WorldPoint.fromLocalInstance(client, bloat.getLocalLocation());
+            LocalPoint bBack  = (bInst != null) ? LocalPoint.fromWorld(client, bInst) : null;
+            log.debug("[LearnerToB] BloatTT world={} inst={} back={} localLoc={}",
+                    bWorld, bInst, bBack, bloat.getLocalLocation());
+            LocalPoint trueSW = bloat.getLocalLocation();
             if (trueSW != null)
             {
                 int half = (bloatSize - 1) * Perspective.LOCAL_TILE_SIZE / 2;
