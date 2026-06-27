@@ -25,8 +25,10 @@ import net.runelite.api.EnumID;
 import net.runelite.api.GameState;
 import net.runelite.api.GroundObject;
 import net.runelite.api.JagexColor;
-import net.runelite.api.Model;
 import net.runelite.api.InventoryID;
+import net.runelite.api.Scene;
+import net.runelite.api.SceneTilePaint;
+import net.runelite.api.Tile;
 import net.runelite.api.Item;
 import net.runelite.api.Player;
 import net.runelite.api.ItemContainer;
@@ -41,13 +43,14 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
-import net.runelite.api.events.GroundObjectSpawned;
 import net.runelite.api.events.ItemContainerChanged;
+import net.runelite.api.events.PreMapLoad;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.callback.Hooks;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemEquipmentStats;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemStats;
@@ -110,10 +113,6 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private static final int BLOAT_ID = 8359;
 	private static final Set<Integer> BLOAT_FLOOR_IDS = new HashSet<>(java.util.Arrays.asList(
 			32941, 32942, 32943, 32944, 32945, 32946, 32947, 32948));
-	// HSL target for the floor recolor (#135357 at brightness 1.0 = no gamma shift).
-	// Lower brightness (e.g. 0.7) toward 0 if it renders too pale in-game.
-	private static final short BLOAT_FLOOR_HSL = JagexColor.rgbToHSL(0x135357, 1.0d);
-
 	// Maiden phases by NPC id (she transforms at 70/50/30%). Normal + Story mode.
 	private static final Set<Integer> MAIDEN_IDS = new HashSet<>(java.util.Arrays.asList(
 			8360, 8361, 8362, 8363, 8364, 8365,
@@ -788,32 +787,86 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	}
 
 	/**
-	 * Recolors Bloat danger floor tiles to #135357 (dark teal) on spawn.
-	 * GroundObjectSpawned re-fires on each room/scene load so the recolor
-	 * reapplies automatically on re-entry without any despawn handler.
+	 * Recolors Bloat danger floor tiles before the scene is uploaded to GPU.
+	 * PreMapLoad fires before SceneUploader runs, so SceneTilePaint edits
+	 * render immediately on the next frame without needing setSceneId(0).
 	 *
-	 * setSceneId(0) forces SceneUploader to re-read the face colors on the next
-	 * frame — without it the recolor is written but never displayed.
-	 * BLOAT_FLOOR_HSL brightness is tunable: lower toward 0.7 if it renders
-	 * too pale; raise above 1.0 to darken.
+	 * Two passes per matching tile:
+	 *   1) SceneTilePaint corner colors — paints the terrain itself.
+	 *   2) setGroundObject(null) — removes the blood-splatter decals (IDs 32941-32948).
+	 *
+	 * Area: outer box 3288-3303 x 4440-4455, minus inner chamber 3293-3298 x 4445-4450.
+	 * Config change triggers a LOADING state reload so the new color takes effect.
 	 */
 	@Subscribe
-	public void onGroundObjectSpawned(GroundObjectSpawned event)
+	public void onPreMapLoad(PreMapLoad event)
 	{
 		if (!config.bloatRecolorFloor()) return;
-		GroundObject go = event.getGroundObject();
-		if (!BLOAT_FLOOR_IDS.contains(go.getId())) return;
-		Renderable r = go.getRenderable();
-		Model m = (r instanceof Model) ? (Model) r : (r != null ? r.getModel() : null);
-		if (m == null) return;
-		int[] fc1 = m.getFaceColors1();
-		int[] fc2 = m.getFaceColors2();
-		int[] fc3 = m.getFaceColors3();
-		int hsl = BLOAT_FLOOR_HSL & 0xFFFF;
-		if (fc1 != null) for (int i = 0; i < fc1.length; i++) fc1[i] = hsl;
-		if (fc2 != null) for (int i = 0; i < fc2.length; i++) fc2[i] = hsl;
-		if (fc3 != null) for (int i = 0; i < fc3.length; i++) fc3[i] = hsl;
-		m.setSceneId(0);
+		int hsl = getSafeHsl(config.bloatFloorColor());
+		Scene scene = client.getScene();
+		Tile[][] plane0 = scene.getTiles()[0];
+		for (Tile[] row : plane0)
+		{
+			for (Tile tile : row)
+			{
+				if (tile == null) continue;
+				WorldPoint wp = WorldPoint.fromLocalInstance(scene, tile.getLocalLocation(), tile.getPlane());
+				if (wp == null) continue;
+				boolean inOuter = wp.getX() >= 3288 && wp.getX() <= 3303
+						&& wp.getY() >= 4440 && wp.getY() <= 4455;
+				if (!inOuter) continue;
+				boolean inInner = wp.getX() >= 3293 && wp.getX() <= 3298
+						&& wp.getY() >= 4445 && wp.getY() <= 4450;
+				if (inInner) continue;
+
+				SceneTilePaint paint = tile.getSceneTilePaint();
+				if (paint != null)
+				{
+					paint.setNwColor(hsl);
+					paint.setNeColor(hsl);
+					paint.setSwColor(hsl);
+					paint.setSeColor(hsl);
+				}
+
+				GroundObject obj = tile.getGroundObject();
+				if (obj != null && BLOAT_FLOOR_IDS.contains(obj.getId()))
+					tile.setGroundObject(null);
+			}
+		}
+	}
+
+	/** Reloads the scene when the floor recolor toggle or color is changed. */
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		if (!LearnerTobConfig.GROUP.equals(event.getGroup())) return;
+		String key = event.getKey();
+		if ("bloatRecolorFloor".equals(key) || "bloatFloorColor".equals(key))
+		{
+			clientThread.invokeLater(() -> {
+				if (client.getGameState() == GameState.LOGGED_IN)
+					client.setGameState(GameState.LOADING);
+			});
+		}
+	}
+
+	/**
+	 * Converts an AWT Color to a Jagex HSL int safe for SceneTilePaint.
+	 * Some colors (pure blue, magenta, black) convert to HSL=0 which renders
+	 * black; this clamps lightness to at least 1 and falls back to mid-grey
+	 * if the result is still zero.
+	 */
+	private int getSafeHsl(Color color)
+	{
+		int rgb = (color.getRed() << 16) | (color.getGreen() << 8) | color.getBlue();
+		int hsl = JagexColor.rgbToHSL(rgb, 1.0d);
+		if (hsl > 0) return hsl;
+		int hue   = (hsl >> 10) & 0x3F;
+		int sat   = (hsl >> 7)  & 0x07;
+		int light = Math.max(1, hsl & 0x7F);
+		hsl = (hue << 10) | (sat << 7) | light;
+		if (hsl <= 0) hsl = JagexColor.rgbToHSL(0x707070, 1.0d);
+		return hsl;
 	}
 
 	/**

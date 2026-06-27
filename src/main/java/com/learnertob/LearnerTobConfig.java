@@ -163,6 +163,11 @@ public interface LearnerTobConfig extends Config
 			position = 5, section = bloatSection)
 	default boolean bloatRecolorFloor() { return true; }
 
+	@ConfigItem(keyName = "bloatFloorColor", name = "Floor color",
+			description = "Color to paint the Bloat danger floor tiles. Changing this reloads the scene.",
+			position = 6, section = bloatSection)
+	default Color bloatFloorColor() { return new Color(0x13, 0x53, 0x57); }
+
 	// --- Testing (dev): pretend you don't own certain items, to test other setups ---
 	@ConfigItem(keyName = "testHideScythe", name = "Hide Scythe",
 			description = "Pretend you own no scythe (forces the No-Scythe / Oathplate-Whip setups).",
