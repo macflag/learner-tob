@@ -61,7 +61,9 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @PluginDescriptor(
 		name = "Learner ToB",
 		description = "Bank-driven gear checks for learning Theatre of Blood",
@@ -160,6 +162,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private boolean bloatPostArmed = false;
 	private boolean bloatPostPromptActive = false;
 	private boolean bloatNpcPresent = false;
+	private NPC bloatNpc = null;
 
 	private final Hooks.RenderableDrawListener drawListener = this::shouldDraw;
 
@@ -219,7 +222,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 				java.util.Collections::emptyList);
 
 		// Bloat setup box: equip Crystal Halberd and Salve.
-		bloatSetupZone = new ZoneTrigger("Bloat \u2014 setup", 3317, 3320, 4446, 4449, 0,
+		bloatSetupZone = new ZoneTrigger("Bloat \u2014 setup", 3178, 3181, 4430, 4432, 0,
 				java.util.Collections::emptyList);
 		// Bloat prayer box: arm Ranged + Piety prayers.
 		bloatPrayerZone = new ZoneTrigger("Bloat \u2014 prayers", 3305, 3305, 4446, 4449, 0,
@@ -651,6 +654,7 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 			bloatPostHandled = false;
 			bloatPostArmed = false;
 			bloatNpcPresent = false;
+			bloatNpc = null;
 		}
 
 		WorldPoint wp = playerWorldPoint(local);
@@ -694,6 +698,12 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 
 		// Bloat room prompts and markers.
 		updateBloat(wp);
+
+		// Reapply floor recolor every tick while in the Bloat room — the GPU plugin
+		// rebuilds zones after scene load and overwrites a one-shot recolor.
+		if (wp.getX() >= 3288 && wp.getX() <= 3303
+				&& wp.getY() >= 4440 && wp.getY() <= 4455)
+			applyBloatFloorRecolor();
 	}
 
 	/**
@@ -777,10 +787,18 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private NPC findBloat()
 	{
 		for (NPC npc : client.getNpcs())
+		{
 			if (npc != null && npc.getId() == BLOAT_ID)
+			{
+				bloatNpc = npc;
 				return npc;
+			}
+		}
+		bloatNpc = null;
 		return null;
 	}
+
+	public NPC getBloatNpc() { return bloatNpc; }
 
 	private void updateBloatTiles(NPC bloat)
 	{
@@ -801,6 +819,11 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	 */
 	@Subscribe
 	public void onPreMapLoad(PreMapLoad event)
+	{
+		applyBloatFloorRecolor();
+	}
+
+	private void applyBloatFloorRecolor()
 	{
 		if (!config.bloatRecolorFloor()) return;
 		int hsl = getSafeHsl(config.bloatFloorColor());
