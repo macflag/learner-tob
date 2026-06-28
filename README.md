@@ -32,7 +32,7 @@ The plugin is **bank-driven** — there are no gear dropdowns to configure. Open
 
 - **Setup prompt** — comply-style popup at the end of the Maiden corridor reminding you to equip Crystal Halberd and Salve (e). Each step clears as soon as the item is equipped. Once per raid.
 - **Prayer prompt** — armed on entering the prayer zone; stays up until Protect from Missiles and Piety are both active. Once per raid.
-- **Post-room reminders** — after Bloat dies, prompts you to drop Salve and pick up a Stamina potion. Once per raid.
+- **Post-room reminders** — the moment Bloat dies, prompts you to drop Salve and pick up a Stamina potion. Stays up until you comply or leave the room. Once per raid.
 - **Tile markers** — draws Bloat's 5×5 footprint as two overlapping tiles: a grey rendered tile (client position) and a white true tile (server position, one tick ahead). When Bloat turns, the white tile snaps before the animation catches up.
 - **Floor recolor** — paints the danger floor tiles a uniform colour (default dark teal #135357, configurable). Toggle and colour are each independently set in settings.
 - **Hide other players** — hides all other players while Bloat is alive to reduce visual clutter.
@@ -87,7 +87,7 @@ Detail on each phase lives on the **[Roadmap wiki page](../../wiki/Roadmap)**.
 ### 1.1.2 — Bloat room
 - **Bloat setup prompt:** at the end of the Maiden corridor, a comply-style popup reminds you to equip Crystal Halberd and Salve (e); each step clears as soon as the item is equipped. Once per raid
 - **Bloat prayer prompt:** armed when you cross the prayer box; stays up until both Protect from Missiles and Piety are active. Once per raid
-- **Bloat post-room reminders:** once Bloat dies and you enter the exit corridor, a comply popup prompts you to drop Salve and pick up a Stamina potion (4). Persists until both are done. Once per raid
+- **Bloat post-room reminders:** the moment Bloat's NPC despawns, a comply popup prompts you to drop Salve and pick up a Stamina potion (4). Persists until both are done or you leave the room. Once per raid
 - **Bloat tile markers:** draws Bloat's 5×5 footprint as two overlapping tiles — a grey rendered tile (client/visual position) and a white true tile (server position, one tick ahead of the animation). When Bloat turns, the white tile snaps before the model catches up, giving an early read on his new facing direction
 - **Bloat floor recolor:** paints the danger floor tiles a uniform colour so the room is easier to read; toggle and colour are each independently configurable in settings (default dark teal #135357)
 - **Hide other players (Bloat):** hides all players except yourself while Bloat is present; toggle in settings

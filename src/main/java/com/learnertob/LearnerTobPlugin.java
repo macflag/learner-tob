@@ -44,6 +44,7 @@ import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
+import net.runelite.api.events.NpcDespawned;
 import net.runelite.api.events.PreMapLoad;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.client.callback.ClientThread;
@@ -158,7 +159,6 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	// Bloat per-raid state
 	private ZoneTrigger bloatSetupZone;
 	private ZoneTrigger bloatPrayerZone;
-	private ZoneTrigger bloatPostZone;
 	private boolean bloatSetupHandled = false;
 	private boolean bloatSetupPromptActive = false;
 	private boolean bloatSetupArmed = false;
@@ -167,7 +167,6 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 	private boolean bloatPrayerActive = false;
 	private boolean bloatPostHandled = false;
 	private boolean bloatPostArmed = false;
-	private boolean bloatPostInBox = false;
 	private boolean bloatPostPromptActive = false;
 	private boolean bloatNpcPresent = false;
 	private NPC bloatNpc = null;
@@ -234,9 +233,6 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 				java.util.Collections::emptyList);
 		// Bloat prayer box: arm Ranged + Piety prayers.
 		bloatPrayerZone = new ZoneTrigger("Bloat \u2014 prayers", 3305, 3305, 4446, 4449, 0,
-				java.util.Collections::emptyList);
-		// Bloat post-room box: triggered after Bloat is dead.
-		bloatPostZone = new ZoneTrigger("Bloat \u2014 post", 3274, 3278, 4446, 4449, 0,
 				java.util.Collections::emptyList);
 	}
 
@@ -661,7 +657,6 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 			bloatPrayerArmed = false;
 			bloatPostHandled = false;
 			bloatPostArmed = false;
-			bloatPostInBox = false;
 			bloatNpcPresent = false;
 			bloatNpc = null;
 		}
@@ -785,6 +780,13 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		updateBloatSetup(wp);
 		updateBloatPrayer(wp);
 		updateBloatPost(wp);
+	}
+
+	@Subscribe
+	public void onNpcDespawned(NpcDespawned event)
+	{
+		if (BLOAT_IDS.contains(event.getNpc().getId()))
+			bloatPostArmed = true;
 	}
 
 	private NPC findBloat()
@@ -980,20 +982,17 @@ public class LearnerTobPlugin extends Plugin implements MouseListener
 		if (!config.bloatPostRoomReminders()) return;
 		if (bloatPostHandled) return;
 
-		boolean inBox = bloatPostZone.contains(wp);
-		if (inBox && !bloatNpcPresent) bloatPostArmed = true;
+		if (!bloatPostArmed) return;
 
-		// Once armed, cancel if the player leaves the post-zone (walked into Nylocas).
-		if (bloatPostArmed && !inBox && bloatPostInBox)
+		// Cancel if the player has left the Bloat room region (entered Nylocas or beyond).
+		boolean inBloatRoom = wp.getX() >= 3269 && wp.getX() <= 3322
+				&& wp.getY() >= 4441 && wp.getY() <= 4462;
+		if (!inBloatRoom)
 		{
 			if (bloatPostPromptActive) { overlay.dismiss(); bloatPostPromptActive = false; }
 			bloatPostHandled = true;
-			bloatPostInBox = false;
 			return;
 		}
-		bloatPostInBox = inBox;
-
-		if (!bloatPostArmed) return;
 
 		List<String> steps = bloatPostSteps();
 		if (steps.isEmpty())
